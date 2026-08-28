@@ -1,6 +1,9 @@
 package content
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDefaultPortfolioContent(t *testing.T) {
 	portfolio := Default()
@@ -32,6 +35,9 @@ func TestDefaultPortfolioContent(t *testing.T) {
 		t.Helper()
 		if id == "" {
 			t.Errorf("%s has an empty ID", kind)
+		}
+		if id != strings.ToLower(id) {
+			t.Errorf("%s ID %q must be lowercase", kind, id)
 		}
 		if seenIDs[id] {
 			t.Errorf("duplicate ID %q", id)
