@@ -5,6 +5,8 @@
 
 # Runtime secrets and local configuration
 /.ssh/
+/known_hosts
+/known_hosts.old
 *.key
 *.pem
 .env
