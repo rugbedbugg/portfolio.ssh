@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +139,61 @@ func TestLoadConfigReturnsFlagHelp(t *testing.T) {
 	_, err := loadConfig(func(string) string { return "" }, []string{"-help"})
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("loadConfig() error = %v, want flag.ErrHelp", err)
+	}
+}
+
+func TestRunRendersUsageForHelp(t *testing.T) {
+	var stderr bytes.Buffer
+	code := run(func(string) string { return "" }, []string{"-help"}, &stderr)
+	if code != 0 {
+		t.Fatalf("run() exit code = %d, want 0", code)
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "Usage: portfolio-ssh [options]") {
+		t.Errorf("help output = %q, want usage header", output)
+	}
+	if !strings.Contains(output, "-listen") {
+		t.Errorf("help output = %q, want -listen option", output)
+	}
+}
+
+func TestRunWritesSanitizedFlagError(t *testing.T) {
+	const secret = "not-a-duration-token"
+	var stderr bytes.Buffer
+	code := run(func(string) string { return "" }, []string{"-idle-timeout=" + secret}, &stderr)
+	if code != 2 {
+		t.Fatalf("run() exit code = %d, want 2", code)
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "invalid configuration: invalid value for -idle-timeout; expected duration") {
+		t.Errorf("error output = %q, want sanitized idle-timeout reason", output)
+	}
+	if strings.Contains(output, secret) {
+		t.Errorf("error output = %q, must not contain malformed value", output)
+	}
+}
+
+func TestRunWritesSanitizedEnvironmentError(t *testing.T) {
+	const secret = "not-a-session-duration"
+	var stderr bytes.Buffer
+	code := run(func(key string) string {
+		if key == "PORTFOLIO_SSH_MAX_SESSION" {
+			return secret
+		}
+		return ""
+	}, nil, &stderr)
+	if code != 2 {
+		t.Fatalf("run() exit code = %d, want 2", code)
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "invalid configuration: PORTFOLIO_SSH_MAX_SESSION must be a duration") {
+		t.Errorf("error output = %q, want sanitized max-session reason", output)
+	}
+	if strings.Contains(output, secret) {
+		t.Errorf("error output = %q, must not contain malformed value", output)
 	}
 }
 
