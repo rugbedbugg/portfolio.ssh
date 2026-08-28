@@ -26,11 +26,13 @@ import (
 
 func TestValidateRejectsUnsafeConfiguration(t *testing.T) {
 	valid := Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         "host_key",
-		IdleTimeout:         time.Minute,
-		MaxSession:          time.Hour,
-		MaxConnectionsPerIP: 2,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                "host_key",
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        2,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}
 
 	tests := []struct {
@@ -47,6 +49,10 @@ func TestValidateRejectsUnsafeConfiguration(t *testing.T) {
 		{name: "negative maximum session", mutate: func(cfg *Config) { cfg.MaxSession = -time.Second }},
 		{name: "zero per-IP limit", mutate: func(cfg *Config) { cfg.MaxConnectionsPerIP = 0 }},
 		{name: "negative per-IP limit", mutate: func(cfg *Config) { cfg.MaxConnectionsPerIP = -1 }},
+		{name: "zero attempt limit", mutate: func(cfg *Config) { cfg.MaxConnectionAttemptsPerIP = 0 }},
+		{name: "negative attempt limit", mutate: func(cfg *Config) { cfg.MaxConnectionAttemptsPerIP = -1 }},
+		{name: "zero attempt window", mutate: func(cfg *Config) { cfg.ConnectionAttemptWindow = 0 }},
+		{name: "negative attempt window", mutate: func(cfg *Config) { cfg.ConnectionAttemptWindow = -time.Second }},
 	}
 
 	for _, tt := range tests {
@@ -67,11 +73,13 @@ func TestValidateRejectsUnsafeConfiguration(t *testing.T) {
 func TestNewBuildsHardenedServerWithConfiguredHostKeyAndTimeouts(t *testing.T) {
 	hostKeyPath, expectedSigner := writeHostKey(t)
 	cfg := Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         hostKeyPath,
-		IdleTimeout:         45 * time.Second,
-		MaxSession:          20 * time.Minute,
-		MaxConnectionsPerIP: 3,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                hostKeyPath,
+		IdleTimeout:                45 * time.Second,
+		MaxSession:                 20 * time.Minute,
+		MaxConnectionsPerIP:        3,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}
 
 	srv, err := New(cfg, content.Default())
@@ -99,6 +107,9 @@ func TestNewBuildsHardenedServerWithConfiguredHostKeyAndTimeouts(t *testing.T) {
 	if srv.LocalPortForwardingCallback != nil || srv.ReversePortForwardingCallback != nil {
 		t.Fatal("port-forwarding callbacks must remain disabled")
 	}
+	if srv.ConnCallback == nil {
+		t.Fatal("server has no pre-handshake connection-attempt limiter")
+	}
 	if srv.SessionRequestCallback == nil {
 		t.Fatal("server has no session request policy")
 	}
@@ -118,11 +129,13 @@ func TestNewRejectsUnreadableHostKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         path,
-		IdleTimeout:         time.Minute,
-		MaxSession:          time.Hour,
-		MaxConnectionsPerIP: 1,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                path,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        1,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}
 
 	if _, err := New(cfg, content.Default()); err == nil {
@@ -133,11 +146,13 @@ func TestNewRejectsUnreadableHostKey(t *testing.T) {
 func TestNewRejectsMissingHostKeyWithoutCreatingIt(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing_host_key")
 	cfg := Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         path,
-		IdleTimeout:         time.Minute,
-		MaxSession:          time.Hour,
-		MaxConnectionsPerIP: 1,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                path,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        1,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}
 
 	if _, err := New(cfg, content.Default()); err == nil {
@@ -151,11 +166,13 @@ func TestNewRejectsMissingHostKeyWithoutCreatingIt(t *testing.T) {
 func TestNewRejectsNonPTYAndNonPortfolioCapabilitiesOverSSH(t *testing.T) {
 	hostKeyPath, _ := writeHostKey(t)
 	srv, err := New(Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         hostKeyPath,
-		IdleTimeout:         time.Minute,
-		MaxSession:          time.Hour,
-		MaxConnectionsPerIP: 4,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                hostKeyPath,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        4,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}, content.Default())
 	if err != nil {
 		t.Fatal(err)
@@ -219,6 +236,49 @@ func TestNewRejectsNonPTYAndNonPortfolioCapabilitiesOverSSH(t *testing.T) {
 	if forwarded, err := client.Dial("tcp", destination.Addr().String()); err == nil {
 		_ = forwarded.Close()
 		t.Fatal("direct TCP forwarding request was accepted")
+	}
+}
+
+func TestNewRateLimitsRapidConnectionAttemptsPerRemoteIP(t *testing.T) {
+	hostKeyPath, _ := writeHostKey(t)
+	srv, err := New(Config{
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                hostKeyPath,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        4,
+		MaxConnectionAttemptsPerIP: 2,
+		ConnectionAttemptWindow:    time.Hour,
+	}, content.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := testsession.Listen(t, srv)
+
+	for attempt := 1; attempt <= 3; attempt++ {
+		sess, err := testsession.NewClientSession(t, addr, nil)
+		if attempt == 3 {
+			if err == nil {
+				_ = sess.Close()
+				t.Fatal("third rapid connection completed its SSH handshake; want pre-handshake rate rejection")
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("attempt %d client session: %v", attempt, err)
+		}
+		var stderr bytes.Buffer
+		sess.Stderr = &stderr
+		if err := sess.Shell(); err != nil {
+			t.Fatalf("attempt %d start session: %v", attempt, err)
+		}
+		if err := sess.Wait(); err == nil {
+			t.Fatalf("attempt %d exited successfully; want middleware rejection", attempt)
+		}
+
+		if !strings.Contains(stderr.String(), "interactive terminal required") {
+			t.Fatalf("attempt %d response = %q; want PTY rejection", attempt, stderr.String())
+		}
 	}
 }
 

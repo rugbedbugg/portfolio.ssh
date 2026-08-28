@@ -26,11 +26,13 @@ import (
 
 // Config contains the SSH listener and resource limits.
 type Config struct {
-	ListenAddress       string
-	HostKeyPath         string
-	IdleTimeout         time.Duration
-	MaxSession          time.Duration
-	MaxConnectionsPerIP int
+	ListenAddress              string
+	HostKeyPath                string
+	IdleTimeout                time.Duration
+	MaxSession                 time.Duration
+	MaxConnectionsPerIP        int
+	MaxConnectionAttemptsPerIP int
+	ConnectionAttemptWindow    time.Duration
 }
 
 // Validate rejects configurations that would disable a required boundary.
@@ -46,6 +48,10 @@ func Validate(cfg Config) error {
 		return errors.New("maximum session duration must be positive")
 	case cfg.MaxConnectionsPerIP <= 0:
 		return errors.New("maximum connections per IP must be positive")
+	case cfg.MaxConnectionAttemptsPerIP <= 0:
+		return errors.New("maximum connection attempts per IP must be positive")
+	case cfg.ConnectionAttemptWindow <= 0:
+		return errors.New("connection attempt window must be positive")
 	default:
 		return nil
 	}
@@ -62,12 +68,13 @@ func New(cfg Config, portfolio content.Portfolio) (*ssh.Server, error) {
 	}
 
 	limiter := newIPLimiter(cfg.MaxConnectionsPerIP)
+	attempts := newAttemptLimiter(cfg.MaxConnectionAttemptsPerIP, cfg.ConnectionAttemptWindow, maxTrackedAttemptAddresses, time.Now)
 	return wish.NewServer(
 		wish.WithAddress(cfg.ListenAddress),
 		wish.WithHostKeyPEM(hostKeyPEM),
 		wish.WithIdleTimeout(cfg.IdleTimeout),
 		wish.WithMaxTimeout(cfg.MaxSession),
-		hardenedBindings(),
+		hardenedBindings(attempts),
 		wish.WithMiddleware(
 			bubbletea.Middleware(sessionModelHandler(portfolio)),
 			requirePTYMiddleware(),
@@ -78,8 +85,9 @@ func New(cfg Config, portfolio content.Portfolio) (*ssh.Server, error) {
 	)
 }
 
-func hardenedBindings() ssh.Option {
+func hardenedBindings(attempts *attemptLimiter) ssh.Option {
 	return func(srv *ssh.Server) error {
+		srv.ConnCallback = connectionAttemptLimitCallback(attempts)
 		srv.ChannelHandlers = map[string]ssh.ChannelHandler{
 			"session": hardenedSessionHandler,
 		}

@@ -25,11 +25,13 @@ func TestLoadConfigUsesDefaults(t *testing.T) {
 	}
 
 	want := server.Config{
-		ListenAddress:       ":23234",
-		HostKeyPath:         ".ssh/portfolio_ed25519",
-		IdleTimeout:         10 * time.Minute,
-		MaxSession:          time.Hour,
-		MaxConnectionsPerIP: 5,
+		ListenAddress:              ":23234",
+		HostKeyPath:                ".ssh/portfolio_ed25519",
+		IdleTimeout:                10 * time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        5,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}
 	if cfg != want {
 		t.Errorf("loadConfig() = %#v, want %#v", cfg, want)
@@ -38,11 +40,13 @@ func TestLoadConfigUsesDefaults(t *testing.T) {
 
 func TestLoadConfigUsesEnvironmentValues(t *testing.T) {
 	env := map[string]string{
-		"PORTFOLIO_SSH_LISTEN":                 "127.0.0.1:2222",
-		"PORTFOLIO_SSH_HOST_KEY":               "testdata/host_key",
-		"PORTFOLIO_SSH_IDLE_TIMEOUT":           "3m",
-		"PORTFOLIO_SSH_MAX_SESSION":            "30m",
-		"PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP": "12",
+		"PORTFOLIO_SSH_LISTEN":                         "127.0.0.1:2222",
+		"PORTFOLIO_SSH_HOST_KEY":                       "testdata/host_key",
+		"PORTFOLIO_SSH_IDLE_TIMEOUT":                   "3m",
+		"PORTFOLIO_SSH_MAX_SESSION":                    "30m",
+		"PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP":         "12",
+		"PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP": "24",
+		"PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW":      "2m",
 	}
 
 	cfg, err := loadConfig(func(key string) string { return env[key] }, nil)
@@ -51,11 +55,13 @@ func TestLoadConfigUsesEnvironmentValues(t *testing.T) {
 	}
 
 	want := server.Config{
-		ListenAddress:       "127.0.0.1:2222",
-		HostKeyPath:         "testdata/host_key",
-		IdleTimeout:         3 * time.Minute,
-		MaxSession:          30 * time.Minute,
-		MaxConnectionsPerIP: 12,
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                "testdata/host_key",
+		IdleTimeout:                3 * time.Minute,
+		MaxSession:                 30 * time.Minute,
+		MaxConnectionsPerIP:        12,
+		MaxConnectionAttemptsPerIP: 24,
+		ConnectionAttemptWindow:    2 * time.Minute,
 	}
 	if cfg != want {
 		t.Errorf("loadConfig() = %#v, want %#v", cfg, want)
@@ -64,11 +70,13 @@ func TestLoadConfigUsesEnvironmentValues(t *testing.T) {
 
 func TestLoadConfigFlagsOverrideEnvironment(t *testing.T) {
 	env := map[string]string{
-		"PORTFOLIO_SSH_LISTEN":                 "127.0.0.1:2222",
-		"PORTFOLIO_SSH_HOST_KEY":               "testdata/host_key",
-		"PORTFOLIO_SSH_IDLE_TIMEOUT":           "3m",
-		"PORTFOLIO_SSH_MAX_SESSION":            "30m",
-		"PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP": "12",
+		"PORTFOLIO_SSH_LISTEN":                         "127.0.0.1:2222",
+		"PORTFOLIO_SSH_HOST_KEY":                       "testdata/host_key",
+		"PORTFOLIO_SSH_IDLE_TIMEOUT":                   "3m",
+		"PORTFOLIO_SSH_MAX_SESSION":                    "30m",
+		"PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP":         "12",
+		"PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP": "24",
+		"PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW":      "2m",
 	}
 	args := []string{
 		"-listen=127.0.0.1:2022",
@@ -76,6 +84,8 @@ func TestLoadConfigFlagsOverrideEnvironment(t *testing.T) {
 		"-idle-timeout=4m",
 		"-max-session=45m",
 		"-max-connections-per-ip=8",
+		"-max-connection-attempts-per-ip=16",
+		"-connection-attempt-window=90s",
 	}
 
 	cfg, err := loadConfig(func(key string) string { return env[key] }, args)
@@ -84,11 +94,13 @@ func TestLoadConfigFlagsOverrideEnvironment(t *testing.T) {
 	}
 
 	want := server.Config{
-		ListenAddress:       "127.0.0.1:2022",
-		HostKeyPath:         "alternate.key",
-		IdleTimeout:         4 * time.Minute,
-		MaxSession:          45 * time.Minute,
-		MaxConnectionsPerIP: 8,
+		ListenAddress:              "127.0.0.1:2022",
+		HostKeyPath:                "alternate.key",
+		IdleTimeout:                4 * time.Minute,
+		MaxSession:                 45 * time.Minute,
+		MaxConnectionsPerIP:        8,
+		MaxConnectionAttemptsPerIP: 16,
+		ConnectionAttemptWindow:    90 * time.Second,
 	}
 	if cfg != want {
 		t.Errorf("loadConfig() = %#v, want %#v", cfg, want)
@@ -103,6 +115,8 @@ func TestLoadConfigRejectsInvalidEnvironmentValues(t *testing.T) {
 		{name: "idle timeout", env: map[string]string{"PORTFOLIO_SSH_IDLE_TIMEOUT": "later"}},
 		{name: "maximum session", env: map[string]string{"PORTFOLIO_SSH_MAX_SESSION": "later"}},
 		{name: "connections per IP", env: map[string]string{"PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP": "many"}},
+		{name: "connection attempts per IP", env: map[string]string{"PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP": "many"}},
+		{name: "connection attempt window", env: map[string]string{"PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW": "later"}},
 	}
 
 	for _, tt := range tests {
@@ -123,6 +137,8 @@ func TestLoadConfigRejectsInvalidFlagValues(t *testing.T) {
 		{name: "idle timeout", args: []string{"-idle-timeout=later"}},
 		{name: "maximum session", args: []string{"-max-session=later"}},
 		{name: "connections per IP", args: []string{"-max-connections-per-ip=many"}},
+		{name: "connection attempts per IP", args: []string{"-max-connection-attempts-per-ip=many"}},
+		{name: "connection attempt window", args: []string{"-connection-attempt-window=later"}},
 	}
 
 	for _, tt := range tests {
@@ -233,11 +249,13 @@ func TestRunWritesSanitizedEnvironmentError(t *testing.T) {
 func TestServeUntilContextGracefullyStopsServer(t *testing.T) {
 	privateKeyPath := writeTestHostKey(t)
 	srv, err := server.New(server.Config{
-		ListenAddress:       "127.0.0.1:0",
-		HostKeyPath:         privateKeyPath,
-		IdleTimeout:         time.Minute,
-		MaxSession:          time.Minute,
-		MaxConnectionsPerIP: 1,
+		ListenAddress:              "127.0.0.1:0",
+		HostKeyPath:                privateKeyPath,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Minute,
+		MaxConnectionsPerIP:        1,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
 	}, content.Default())
 	if err != nil {
 		t.Fatalf("server.New() error = %v", err)

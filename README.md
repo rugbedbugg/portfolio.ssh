@@ -114,6 +114,8 @@ Command-line flags override environment variables. Durations use Go syntax such 
 | `PORTFOLIO_SSH_IDLE_TIMEOUT` | `-idle-timeout` | `10m` | Disconnect an idle client |
 | `PORTFOLIO_SSH_MAX_SESSION` | `-max-session` | `1h` | Maximum session lifetime |
 | `PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP` | `-max-connections-per-ip` | `5` | Simultaneous sessions allowed per source IP |
+| `PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP` | `-max-connection-attempts-per-ip` | `10` | Connection attempts allowed per source IP in one rate-limit window |
+| `PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW` | `-connection-attempt-window` | `1m` | Fixed window used for the per-IP attempt limit |
 
 For example:
 
@@ -123,6 +125,8 @@ $env:PORTFOLIO_SSH_HOST_KEY = 'D:\secrets\portfolio_ed25519'
 $env:PORTFOLIO_SSH_IDLE_TIMEOUT = '5m'
 $env:PORTFOLIO_SSH_MAX_SESSION = '30m'
 $env:PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP = '3'
+$env:PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP = '10'
+$env:PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW = '1m'
 .\bin\portfolio-ssh.exe
 ```
 
@@ -156,6 +160,8 @@ Environment=PORTFOLIO_SSH_HOST_KEY=/var/lib/portfolio-ssh/.ssh/portfolio_ed25519
 Environment=PORTFOLIO_SSH_IDLE_TIMEOUT=10m
 Environment=PORTFOLIO_SSH_MAX_SESSION=1h
 Environment=PORTFOLIO_SSH_MAX_CONNECTIONS_PER_IP=5
+Environment=PORTFOLIO_SSH_MAX_CONNECTION_ATTEMPTS_PER_IP=10
+Environment=PORTFOLIO_SSH_CONNECTION_ATTEMPT_WINDOW=1m
 ExecStart=/usr/local/bin/portfolio-ssh
 Restart=on-failure
 RestartSec=5s
@@ -183,7 +189,8 @@ Point a DNS `A` record (and `AAAA` when IPv6 is configured) at the server. Permi
 
 - The endpoint is intentionally public: it does not check visitor credentials or grant a user account. A client must request an interactive PTY; non-PTY and executable-command requests are rejected.
 - Only SSH `session` channels and the fixed portfolio command language are enabled. Subsystems, local/reverse forwarding, and agent forwarding are disabled.
-- Idle timeouts, maximum session durations, and per-source-IP connection limits bound basic resource use. They are not a substitute for network-level rate limiting or denial-of-service protection.
+- Idle timeouts, maximum session durations, per-source-IP connection-attempt windows, and concurrent-session limits bound basic resource use. Attempt-limit state is capped and stale address records expire. These application controls are not a substitute for network-level denial-of-service protection.
+- The attempt limit is enforced on the raw connection before the SSH handshake. Excess attempts are closed immediately, so a rate-limited client receives a connection failure rather than an in-session message; TCP health probes also count as attempts.
 - The host key is the server's long-lived identity and must remain private, readable only by the service account, backed up securely, and rotated deliberately.
 - Portfolio URLs are displayed as content. The service does not execute them or run visitor-supplied shell commands.
 - Run the binary as a dedicated non-root user, expose only the selected TCP port, keep dependencies and the operating system patched, and monitor service logs.

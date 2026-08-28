@@ -138,7 +138,9 @@ try {
         '-host-key', $hostKeyPath,
         '-idle-timeout', '30s',
         '-max-session', '30s',
-        '-max-connections-per-ip', '2'
+        '-max-connections-per-ip', '2',
+        '-max-connection-attempts-per-ip', '10',
+        '-connection-attempt-window', '30s'
     ) | ForEach-Object { Quote-NativeArgument -Value $_ }
 
     $serverProcess = Start-Process -FilePath $binaryPath `
