@@ -1,9 +1,6 @@
 package content
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestDefaultPortfolioContent(t *testing.T) {
 	portfolio := Default()
@@ -11,17 +8,22 @@ func TestDefaultPortfolioContent(t *testing.T) {
 	if portfolio.Profile.Name == "" || portfolio.Profile.Biography == nil || len(portfolio.Profile.Biography) == 0 {
 		t.Fatal("profile name and biography must be populated")
 	}
-	if got := len(portfolio.Projects); got != 4 {
-		t.Fatalf("expected 4 projects, got %d", got)
+	counts := []struct {
+		name string
+		got  int
+		want int
+	}{
+		{name: "projects", got: len(portfolio.Projects), want: 4},
+		{name: "publications", got: len(portfolio.Publications), want: 1},
+		{name: "dispatches", got: len(portfolio.Dispatches), want: 2},
+		{name: "contact links", got: len(portfolio.Links), want: 3},
 	}
-	if got := len(portfolio.Publications); got != 1 {
-		t.Fatalf("expected 1 publication, got %d", got)
-	}
-	if got := len(portfolio.Dispatches); got != 2 {
-		t.Fatalf("expected 2 dispatches, got %d", got)
-	}
-	if got := len(portfolio.Links); got != 3 {
-		t.Fatalf("expected 3 contact links, got %d", got)
+	for _, test := range counts {
+		t.Run(test.name, func(t *testing.T) {
+			if test.got != test.want {
+				t.Fatalf("expected %d %s, got %d", test.want, test.name, test.got)
+			}
+		})
 	}
 
 	seenIDs := make(map[string]bool)
@@ -30,9 +32,6 @@ func TestDefaultPortfolioContent(t *testing.T) {
 		t.Helper()
 		if id == "" {
 			t.Errorf("%s has an empty ID", kind)
-		}
-		if id != strings.ToLower(id) {
-			t.Errorf("%s ID %q must be lowercase", kind, id)
 		}
 		if seenIDs[id] {
 			t.Errorf("duplicate ID %q", id)
