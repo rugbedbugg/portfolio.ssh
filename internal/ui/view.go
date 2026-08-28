@@ -250,40 +250,76 @@ func renderStatus(model *Model) string {
 
 func renderFooter(model *Model) string {
 	if model.focus == FocusCommand {
-		label := promptStyle.Render(": COMMAND")
-		available := maxInt(1, model.width-lipgloss.Width(label)-1)
-		return label + " " + ansi.Truncate(model.commandInput.View(), available, "")
+		return renderCommandFooter(model)
 	}
 
-	full := strings.Join([]string{
-		terminalStateStyle.Render("↑/k ↓/j MOVE"),
-		terminalStateStyle.Render("ENTER OPEN"),
-		secondaryCopyStyle.Render("ESC BACK"),
+	fullHints := make([]string, 0, 6)
+	compactHints := make([]string, 0, 6)
+	if model.selectionCount() > 0 {
+		fullHints = append(fullHints,
+			terminalStateStyle.Render("j/k MOVE"),
+			terminalStateStyle.Render("ENTER OPEN"),
+		)
+		compactHints = append(compactHints,
+			terminalStateStyle.Render("j/k"),
+			terminalStateStyle.Render("ENTER"),
+		)
+	}
+	if model.pane != PaneIndex {
+		fullHints = append(fullHints, secondaryCopyStyle.Render("ESC BACK"))
+		compactHints = append(compactHints, secondaryCopyStyle.Render("ESC"))
+	}
+	fullHints = append(fullHints,
+		secondaryCopyStyle.Render("? HELP"),
 		promptStyle.Render(": COMMAND"),
 		secondaryCopyStyle.Render("q EXIT"),
-	}, "  ")
+	)
+	compactHints = append(compactHints,
+		secondaryCopyStyle.Render("?"),
+		promptStyle.Render(":"),
+		secondaryCopyStyle.Render("q"),
+	)
+
+	full := strings.Join(fullHints, "  ")
 	if lipgloss.Width(full) <= model.width {
 		return full
 	}
 
-	compact := strings.Join([]string{
-		terminalStateStyle.Render("j/k MOVE"),
-		terminalStateStyle.Render("ENTER OPEN"),
-		secondaryCopyStyle.Render("ESC BACK"),
-		promptStyle.Render(": COMMAND"),
-		secondaryCopyStyle.Render("q EXIT"),
-	}, "  ")
+	compact := strings.Join(compactHints, " ")
 	if lipgloss.Width(compact) <= model.width {
 		return compact
 	}
+	return ansi.Truncate(compact, maxInt(1, model.width), "")
+}
 
-	contextHint := "j/k"
-	if model.pane != PaneIndex {
-		contextHint = "ESC"
+func renderCommandFooter(model *Model) string {
+	label := promptStyle.Render(": COMMAND")
+	fullHints := strings.Join([]string{
+		terminalStateStyle.Render("TAB COMPLETE"),
+		terminalStateStyle.Render("↑/↓ HISTORY"),
+		secondaryCopyStyle.Render("ESC CANCEL"),
+		terminalStateStyle.Render("ENTER RUN"),
+	}, "  ")
+	if fixedWidth := lipgloss.Width(label) + lipgloss.Width(fullHints) + 4; fixedWidth < model.width {
+		inputWidth := model.width - fixedWidth
+		input := ansi.Truncate(model.commandInput.View(), inputWidth, "")
+		return label + " " + input + "  " + fullHints
 	}
-	return terminalStateStyle.Render(contextHint) + " " +
-		promptStyle.Render(": COMMAND") + " " +
-		secondaryCopyStyle.Render("q EXIT")
+
+	compactHints := strings.Join([]string{
+		terminalStateStyle.Render("TAB"),
+		terminalStateStyle.Render("↑/↓"),
+		secondaryCopyStyle.Render("ESC"),
+		terminalStateStyle.Render("ENTER"),
+	}, " ")
+	if fixedWidth := lipgloss.Width(label) + lipgloss.Width(compactHints) + 3; fixedWidth < model.width {
+		inputWidth := model.width - fixedWidth
+		input := ansi.Truncate(model.commandInput.View(), inputWidth, "")
+		return label + " " + input + " " + compactHints
+	}
+
+	available := maxInt(1, model.width-lipgloss.Width(label)-1)
+	return label + " " + ansi.Truncate(model.commandInput.View(), available, "")
 }
 
 func wrapProse(value string, width int) string {

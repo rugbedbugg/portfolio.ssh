@@ -5,11 +5,11 @@ import "charm.land/lipgloss/v2"
 const (
 	cgaBlack       lipgloss.ANSIColor = 0
 	cgaGreen       lipgloss.ANSIColor = 2
-	cgaCyan        lipgloss.ANSIColor = 3
-	cgaRed         lipgloss.ANSIColor = 4
-	cgaGray        lipgloss.ANSIColor = 7
+	cgaCyan        lipgloss.ANSIColor = 6
+	cgaRed         lipgloss.ANSIColor = 1
+	cgaGray        lipgloss.ANSIColor = 8
 	cgaBrightGreen lipgloss.ANSIColor = 10
-	cgaBrightCyan  lipgloss.ANSIColor = 11
+	cgaBrightCyan  lipgloss.ANSIColor = 14
 	cgaWhite       lipgloss.ANSIColor = 15
 )
 

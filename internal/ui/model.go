@@ -55,6 +55,8 @@ var sectionNames = []string{
 	"contact",
 }
 
+const helpStatus = "commands: help, about/whoami, projects/ls, project <id>, research, dispatches, contact, open <id>, clear, exit"
+
 // Model holds the portfolio data and a single interactive session's state.
 type Model struct {
 	data          content.Portfolio
@@ -122,6 +124,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ":":
 		m.focus = FocusCommand
 		return m, m.commandInput.Focus()
+	case "?":
+		m.status = helpStatus
 	case "q":
 		return m, func() tea.Msg { return tea.Quit() }
 	}
@@ -234,7 +238,7 @@ func (m *Model) executeCommand(input string) (tea.Model, tea.Cmd) {
 
 	switch result.Kind {
 	case command.Help:
-		m.status = "commands: help, about, projects, project <id>, research, dispatches, contact, open <id>, clear, exit"
+		m.status = helpStatus
 	case command.About:
 		m.openSectionByCommand(SectionAbout)
 		m.status = m.data.Profile.Name + " — " + m.data.Profile.Tagline

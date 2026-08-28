@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 
@@ -11,26 +12,97 @@ import (
 	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
-func TestCanonicalCGAStylesUseANSIIndexedColors(t *testing.T) {
+func TestCanonicalCGAStylesResolveToNamedVisualHues(t *testing.T) {
 	colors := []struct {
 		name string
 		got  lipgloss.ANSIColor
-		want lipgloss.ANSIColor
+		want color.RGBA
 	}{
-		{name: "black", got: cgaBlack, want: 0},
-		{name: "green", got: cgaGreen, want: 2},
-		{name: "cyan", got: cgaCyan, want: 3},
-		{name: "red", got: cgaRed, want: 4},
-		{name: "gray", got: cgaGray, want: 7},
-		{name: "bright green", got: cgaBrightGreen, want: 10},
-		{name: "bright cyan", got: cgaBrightCyan, want: 11},
-		{name: "white", got: cgaWhite, want: 15},
+		{name: "black", got: cgaBlack, want: color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff}},
+		{name: "green", got: cgaGreen, want: color.RGBA{R: 0x00, G: 0x80, B: 0x00, A: 0xff}},
+		{name: "cyan", got: cgaCyan, want: color.RGBA{R: 0x00, G: 0x80, B: 0x80, A: 0xff}},
+		{name: "red", got: cgaRed, want: color.RGBA{R: 0x80, G: 0x00, B: 0x00, A: 0xff}},
+		{name: "gray", got: cgaGray, want: color.RGBA{R: 0x80, G: 0x80, B: 0x80, A: 0xff}},
+		{name: "bright green", got: cgaBrightGreen, want: color.RGBA{R: 0x00, G: 0xff, B: 0x00, A: 0xff}},
+		{name: "bright cyan", got: cgaBrightCyan, want: color.RGBA{R: 0x00, G: 0xff, B: 0xff, A: 0xff}},
+		{name: "white", got: cgaWhite, want: color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}},
 	}
 
 	for _, test := range colors {
 		t.Run(test.name, func(t *testing.T) {
-			if test.got != test.want {
-				t.Fatalf("CGA %s index = %d, want %d", test.name, test.got, test.want)
+			red, green, blue, alpha := test.got.RGBA()
+			got := color.RGBA{R: uint8(red >> 8), G: uint8(green >> 8), B: uint8(blue >> 8), A: uint8(alpha >> 8)}
+			if got != test.want {
+				t.Fatalf("CGA %s resolves to %#v, want %#v", test.name, got, test.want)
+			}
+		})
+	}
+}
+
+func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
+	tests := []struct {
+		name      string
+		configure func(*Model)
+		want      []string
+		doNotWant []string
+	}{
+		{
+			name:      "section index",
+			configure: func(*Model) {},
+			want:      []string{"j/k MOVE", "ENTER OPEN", "? HELP", ": COMMAND", "q EXIT"},
+			doNotWant: []string{"ESC BACK"},
+		},
+		{
+			name: "project list",
+			configure: func(model *Model) {
+				model.section = SectionProjects
+				model.pane = PaneSection
+			},
+			want: []string{"j/k MOVE", "ENTER OPEN", "ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
+		},
+		{
+			name: "about detail",
+			configure: func(model *Model) {
+				model.section = SectionAbout
+				model.pane = PaneSection
+			},
+			want:      []string{"ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
+			doNotWant: []string{"j/k MOVE", "ENTER OPEN"},
+		},
+		{
+			name: "record detail",
+			configure: func(model *Model) {
+				model.section = SectionProjects
+				model.pane = PaneRecord
+			},
+			want:      []string{"ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
+			doNotWant: []string{"j/k MOVE", "ENTER OPEN"},
+		},
+		{
+			name: "command input",
+			configure: func(model *Model) {
+				model.focus = FocusCommand
+				model.commandInput.Focus()
+			},
+			want:      []string{"TAB COMPLETE", "↑/↓ HISTORY", "ESC CANCEL", "ENTER RUN", ": COMMAND"},
+			doNotWant: []string{"q EXIT", "j/k MOVE"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			model := New(content.Default(), 160, 30)
+			test.configure(model)
+			footer := testutil.StripANSI(renderFooter(model))
+			for _, want := range test.want {
+				if !strings.Contains(footer, want) {
+					t.Errorf("footer %q missing %q", footer, want)
+				}
+			}
+			for _, unwanted := range test.doNotWant {
+				if strings.Contains(footer, unwanted) {
+					t.Errorf("footer %q unexpectedly contains %q", footer, unwanted)
+				}
 			}
 		})
 	}

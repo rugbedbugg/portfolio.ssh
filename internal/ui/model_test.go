@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/rugbedbugg/portfolio.ssh/internal/content"
+	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
 func TestNewStartsAtAboutInSectionIndex(t *testing.T) {
@@ -151,6 +152,38 @@ func TestTabAppliesCommandCompletion(t *testing.T) {
 
 	if model.commandInput.Value() != "help " {
 		t.Fatalf("tab completion = %q, want help with trailing space", model.commandInput.Value())
+	}
+}
+
+func TestQuestionMarkShowsCompleteHelpWithoutEnteringCommandMode(t *testing.T) {
+	model := New(content.Default(), 120, 40)
+	model = updateModel(t, model, key("?"))
+
+	if model.focus != FocusNavigation || model.commandInput.Focused() {
+		t.Fatal("question mark help must leave navigation focused")
+	}
+	if len(model.history) != 0 {
+		t.Fatalf("question mark help added command history %#v; want none", model.history)
+	}
+	view := testutil.StripANSI(model.View().Content)
+	for _, want := range []string{
+		"help",
+		"about/whoami",
+		"projects/ls",
+		"project <id>",
+		"research",
+		"dispatches",
+		"contact",
+		"open <id>",
+		"clear",
+		"exit",
+	} {
+		if !strings.Contains(model.status, want) {
+			t.Fatalf("question mark help status %q missing %q", model.status, want)
+		}
+		if !strings.Contains(view, want) {
+			t.Fatalf("question mark help view missing %q:\n%s", want, view)
+		}
 	}
 }
 
