@@ -20,6 +20,18 @@ func TestNewStartsAtAboutInSectionIndex(t *testing.T) {
 	}
 }
 
+func TestWindowResizeUpdatesSessionAndCommandInputWidth(t *testing.T) {
+	model := New(content.Default(), 120, 40)
+	model = updateModel(t, model, tea.WindowSizeMsg{Width: 84, Height: 28})
+
+	if model.width != 84 || model.height != 28 {
+		t.Fatalf("resize dimensions = %dx%d, want 84x28", model.width, model.height)
+	}
+	if model.commandInput.Width() != 84 {
+		t.Fatalf("resize command input width = %d, want 84", model.commandInput.Width())
+	}
+}
+
 func TestNavigationWrapsAcrossSectionIndex(t *testing.T) {
 	model := New(content.Default(), 120, 40)
 

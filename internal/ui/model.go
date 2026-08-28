@@ -94,6 +94,13 @@ func (m *Model) Init() tea.Cmd {
 
 // Update applies one Bubble Tea message to the session.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if resize, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = resize.Width
+		m.height = resize.Height
+		m.commandInput.SetWidth(resize.Width)
+		return m, nil
+	}
+
 	key, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
