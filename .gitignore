@@ -1,0 +1,23 @@
+# Build output
+/bin/
+/portfolio-ssh
+/portfolio-ssh.exe
+
+# Runtime secrets and local configuration
+/.ssh/
+*.key
+*.pem
+.env
+.env.*
+
+# Test and tooling output
+/coverage.out
+/coverage.html
+/.idea/
+/.vscode/
+*.swp
+*.tmp
+
+# Local metadata
+.*
+!.gitignore
