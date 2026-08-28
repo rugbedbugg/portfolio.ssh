@@ -80,6 +80,16 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("misspelled project suggests the closest ID", func(t *testing.T) {
+		got := Parse("project reagnt", data)
+		if got.Kind != Project || got.Target != "" || got.Err == "" {
+			t.Fatalf("misspelled project result = %#v, want project error", got)
+		}
+		if !reflect.DeepEqual(got.Suggestions, []string{"reagent"}) {
+			t.Fatalf("misspelled project suggestions = %#v, want [reagent]", got.Suggestions)
+		}
+	})
+
 	t.Run("unknown open target reports corrective error", func(t *testing.T) {
 		got := Parse("open missing", data)
 		if got.Kind != Open || got.Target != "" || got.Err == "" {

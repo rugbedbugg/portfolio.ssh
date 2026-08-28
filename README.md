@@ -15,7 +15,7 @@
 ║  ResonanceID-cli                 Rust · DSP · SQLite              ║
 ║  HTTP-SVR-200-OK                 x86_64 · Linux · Networking      ║
 ║                                                                  ║
-║  j/k move   enter open   esc back   : command   q exit           ║
+║  j/k move   enter open   esc back   ? help   : command   q exit  ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
@@ -79,6 +79,7 @@ In navigation mode:
 | `k` / up arrow | Move to the previous item |
 | `Enter` | Open the selected section or record |
 | `Esc` | Return to the section index |
+| `?` | Show the complete command summary |
 | `:` | Focus the command prompt |
 | `q` | Exit the session |
 
@@ -89,7 +90,7 @@ At the command prompt, use `Tab` for completion, up/down arrows for command hist
 | Command | Action |
 | --- | --- |
 | `help` | Show the command summary |
-| `about` | Open the profile |
+| `about` or `whoami` | Open the profile |
 | `projects` or `ls` | List project case files |
 | `project <id>` | Open one project |
 | `research` | List publications |
@@ -97,9 +98,10 @@ At the command prompt, use `Tab` for completion, up/down arrows for command hist
 | `contact` | List contact links |
 | `open <id>` | Open one contact record |
 | `clear` | Clear status and command history |
-| `exit` or `quit` | End the SSH session |
+| `exit` | End the SSH session |
 
 Commands run inside the portfolio interface. They are never passed to an operating-system shell.
+Unknown project IDs report the closest plausible ID when one exists; ambiguous prefixes list every matching ID.
 
 ## Configuration
 

@@ -83,10 +83,14 @@ func Parse(input string, data content.Portfolio) Result {
 		if len(fields) != 2 {
 			return Result{Kind: Project, Err: "project expects exactly one project ID or unique prefix."}
 		}
-		target, suggestions := resolveID(fields[1], projectIDs(data))
+		ids := projectIDs(data)
+		target, suggestions := resolveID(fields[1], ids)
 		if target == "" {
 			if len(suggestions) > 1 {
 				return Result{Kind: Project, Err: "project prefix is ambiguous; choose one of the suggested IDs.", Suggestions: suggestions}
+			}
+			if len(suggestions) == 0 {
+				suggestions = closestIDs(fields[1], ids)
 			}
 			return Result{Kind: Project, Err: "unknown project; use a complete ID or unique prefix.", Suggestions: suggestions}
 		}
@@ -150,6 +154,62 @@ func resolveID(query string, ids []string) (string, []string) {
 		return matches[0], nil
 	}
 	return "", matches
+}
+
+func closestIDs(query string, ids []string) []string {
+	queryRunes := []rune(strings.ToLower(query))
+	limit := closeMatchDistanceLimit(len(queryRunes))
+	bestDistance := limit + 1
+	matches := make([]string, 0)
+	for _, id := range ids {
+		distance := editDistance(queryRunes, []rune(strings.ToLower(id)))
+		switch {
+		case distance > limit || distance > bestDistance:
+			continue
+		case distance < bestDistance:
+			bestDistance = distance
+			matches = matches[:0]
+		}
+		matches = append(matches, id)
+	}
+	sort.Strings(matches)
+	return matches
+}
+
+func closeMatchDistanceLimit(length int) int {
+	switch {
+	case length <= 4:
+		return 1
+	case length <= 8:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func editDistance(left, right []rune) int {
+	previous := make([]int, len(right)+1)
+	for index := range previous {
+		previous[index] = index
+	}
+
+	for leftIndex, leftRune := range left {
+		current := make([]int, len(right)+1)
+		current[0] = leftIndex + 1
+		for rightIndex, rightRune := range right {
+			cost := 0
+			if leftRune != rightRune {
+				cost = 1
+			}
+			current[rightIndex+1] = min(
+				current[rightIndex]+1,
+				previous[rightIndex+1]+1,
+				previous[rightIndex]+cost,
+			)
+		}
+		previous = current
+	}
+	return previous[len(right)]
 }
 
 // Complete completes a command name or a project/link ID. A partial command
