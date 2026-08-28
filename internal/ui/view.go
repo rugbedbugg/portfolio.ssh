@@ -182,7 +182,7 @@ func renderResearch(model *Model, width int) []string {
 		secondaryCopyStyle.Render("RECORD // "+strings.ToUpper(publication.ID)),
 		primaryCopyStyle.Render(wrapProse(publication.Title, width)),
 		terminalStateStyle.Render(publication.Venue),
-		primaryCopyStyle.Render("CONTRIBUTION // "+publication.Contribution),
+		primaryCopyStyle.Render(wrapProse("CONTRIBUTION // "+publication.Contribution, width)),
 		secondaryCopyStyle.Render(wrapProse("AUTHORS // "+strings.Join(publication.Authors, ", "), width)),
 		primaryCopyStyle.Render(publication.URL),
 	)

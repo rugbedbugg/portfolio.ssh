@@ -185,3 +185,31 @@ func TestResponsiveViewsDoNotOverflowTerminalWidth(t *testing.T) {
 		}
 	}
 }
+
+func TestNarrowResearchDetailWrapsNonURLLinesWithinTerminalWidth(t *testing.T) {
+	const width = 50
+	model := New(content.Default(), width, 24)
+	model.section = SectionResearch
+	model.pane = PaneRecord
+	publicationURL := model.data.Publications[0].URL
+	contentWidth := panelContentWidth(width)
+
+	detail := strings.Join(renderResearch(model, contentWidth), "\n")
+	if !strings.Contains(testutil.StripANSI(detail), publicationURL) {
+		t.Fatalf("narrow research detail missing copyable URL %q:\n%s", publicationURL, testutil.StripANSI(detail))
+	}
+	for lineNumber, line := range strings.Split(detail, "\n") {
+		plainLine := testutil.StripANSI(line)
+		if strings.Contains(plainLine, publicationURL) {
+			continue
+		}
+		if got := lipgloss.Width(line); got > contentWidth {
+			t.Fatalf("narrow research detail non-URL line %d is %d columns wide, want at most %d:\n%s", lineNumber+1, got, contentWidth, plainLine)
+		}
+	}
+
+	view := testutil.StripANSI(render(model))
+	if !strings.Contains(view, "https://doi.org/") || !strings.Contains(view, "5.11439749") {
+		t.Fatalf("rendered narrow research detail obscures the publication URL:\n%s", view)
+	}
+}
