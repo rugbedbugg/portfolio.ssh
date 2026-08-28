@@ -341,26 +341,7 @@ func (m *Model) recordDescription() string {
 	return ""
 }
 
-// View renders a deliberately plain, copyable session representation. Later
-// presentation layers can style it without changing the state contract.
+// View renders the responsive CGA dossier for the current session state.
 func (m *Model) View() tea.View {
-	lines := make([]string, 0, len(sections)+3)
-	if m.pane == PaneIndex {
-		for index, name := range sectionNames {
-			prefix := "  "
-			if index == m.selected {
-				prefix = "> "
-			}
-			lines = append(lines, prefix+name)
-		}
-	} else {
-		lines = append(lines, sectionNames[m.section])
-	}
-	if m.status != "" {
-		lines = append(lines, m.status)
-	}
-	if m.focus == FocusCommand {
-		lines = append(lines, m.commandInput.View())
-	}
-	return tea.NewView(strings.Join(lines, "\n"))
+	return tea.NewView(render(m))
 }
