@@ -175,6 +175,39 @@ func TestRunWritesSanitizedFlagError(t *testing.T) {
 	}
 }
 
+func TestRunWritesErrorForActualLaterInvalidFlag(t *testing.T) {
+	var stderr bytes.Buffer
+	code := run(func(string) string { return "" }, []string{"-idle-timeout=10s", "-max-session=bad"}, &stderr)
+	if code != 2 {
+		t.Fatalf("run() exit code = %d, want 2", code)
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "invalid configuration: invalid value for -max-session; expected duration") {
+		t.Errorf("error output = %q, want max-session reason", output)
+	}
+	if strings.Contains(output, "-idle-timeout; expected duration") {
+		t.Errorf("error output = %q, must not report earlier valid flag", output)
+	}
+}
+
+func TestRunWritesUnknownOptionErrorAfterValidFlag(t *testing.T) {
+	const unknown = "-unsupported-token=secret"
+	var stderr bytes.Buffer
+	code := run(func(string) string { return "" }, []string{"-idle-timeout=10s", unknown}, &stderr)
+	if code != 2 {
+		t.Fatalf("run() exit code = %d, want 2", code)
+	}
+
+	output := stderr.String()
+	if !strings.Contains(output, "invalid configuration: invalid command-line option") {
+		t.Errorf("error output = %q, want unknown-option reason", output)
+	}
+	if strings.Contains(output, "-idle-timeout") || strings.Contains(output, "secret") {
+		t.Errorf("error output = %q, must not report another option or malformed value", output)
+	}
+}
+
 func TestRunWritesSanitizedEnvironmentError(t *testing.T) {
 	const secret = "not-a-session-duration"
 	var stderr bytes.Buffer

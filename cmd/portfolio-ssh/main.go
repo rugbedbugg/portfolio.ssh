@@ -101,7 +101,7 @@ func loadConfig(getenv func(string) string, args []string) (server.Config, error
 		if errors.Is(err, flag.ErrHelp) {
 			return server.Config{}, err
 		}
-		return server.Config{}, sanitizedFlagError(args)
+		return server.Config{}, sanitizedFlagError(err)
 	}
 	if err := server.Validate(cfg); err != nil {
 		return server.Config{}, err
@@ -118,23 +118,31 @@ func writeUsage(stderr io.Writer) {
 	fmt.Fprintln(stderr, "  -max-connections-per-ip int\n    \tmaximum simultaneous connections per IP")
 }
 
-func sanitizedFlagError(args []string) error {
-	for _, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
+func sanitizedFlagError(parseErr error) error {
+	name := flagNameFromParseError(parseErr.Error())
+	switch name {
+	case "idle-timeout", "max-session":
+		return fmt.Errorf("invalid value for -%s; expected duration", name)
+	case "max-connections-per-ip":
+		return errors.New("invalid value for -max-connections-per-ip; expected integer")
+	case "listen", "host-key":
+		return fmt.Errorf("invalid value for -%s", name)
+	default:
+		return errors.New("invalid command-line option")
+	}
+}
+
+func flagNameFromParseError(message string) string {
+	for _, marker := range []string{" for flag -", "flag needs an argument: -"} {
+		index := strings.LastIndex(message, marker)
+		if index == -1 {
 			continue
 		}
-		name := strings.TrimLeft(arg, "-")
-		name, _, _ = strings.Cut(name, "=")
-		switch name {
-		case "idle-timeout", "max-session":
-			return fmt.Errorf("invalid value for -%s; expected duration", name)
-		case "max-connections-per-ip":
-			return errors.New("invalid value for -max-connections-per-ip; expected integer")
-		case "listen", "host-key":
-			return fmt.Errorf("invalid value for -%s", name)
-		}
+		name := message[index+len(marker):]
+		name, _, _ = strings.Cut(name, ":")
+		return name
 	}
-	return errors.New("invalid command-line option")
+	return ""
 }
 
 func valueOrDefault(value, fallback string) string {
