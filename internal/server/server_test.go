@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -126,6 +127,24 @@ func TestNewRejectsUnreadableHostKey(t *testing.T) {
 
 	if _, err := New(cfg, content.Default()); err == nil {
 		t.Fatal("New with malformed host key returned nil error")
+	}
+}
+
+func TestNewRejectsMissingHostKeyWithoutCreatingIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing_host_key")
+	cfg := Config{
+		ListenAddress:       "127.0.0.1:2222",
+		HostKeyPath:         path,
+		IdleTimeout:         time.Minute,
+		MaxSession:          time.Hour,
+		MaxConnectionsPerIP: 1,
+	}
+
+	if _, err := New(cfg, content.Default()); err == nil {
+		t.Error("New with missing host key returned nil error")
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing host key stat error = %v; want os.ErrNotExist", err)
 	}
 }
 

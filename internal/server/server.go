@@ -3,8 +3,10 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -54,11 +56,15 @@ func New(cfg Config, portfolio content.Portfolio) (*ssh.Server, error) {
 	if err := Validate(cfg); err != nil {
 		return nil, err
 	}
+	hostKeyPEM, err := os.ReadFile(cfg.HostKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("read host key: %w", err)
+	}
 
 	limiter := newIPLimiter(cfg.MaxConnectionsPerIP)
 	return wish.NewServer(
 		wish.WithAddress(cfg.ListenAddress),
-		wish.WithHostKeyPath(cfg.HostKeyPath),
+		wish.WithHostKeyPEM(hostKeyPEM),
 		wish.WithIdleTimeout(cfg.IdleTimeout),
 		wish.WithMaxTimeout(cfg.MaxSession),
 		hardenedBindings(),
