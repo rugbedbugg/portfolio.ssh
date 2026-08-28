@@ -22,6 +22,7 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 
 	"github.com/rugbedbugg/portfolio.ssh/internal/content"
+	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
 func TestValidateRejectsUnsafeConfiguration(t *testing.T) {
@@ -294,6 +295,43 @@ func TestNewSessionModelProducesIndependentState(t *testing.T) {
 	if updated.View().Content == second.View().Content {
 		t.Fatal("changing the first session also changed or matched the second session state")
 	}
+}
+
+func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
+	model := newSessionModel(content.Default(), 100, 30)
+	initial := testutil.StripANSI(model.View().Content)
+	if !strings.Contains(initial, "OXIDE") {
+		t.Fatalf("initial session view missing OXIDE marker:\n%s", initial)
+	}
+
+	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: ":", Code: ':'}))
+	for _, char := range "projects" {
+		model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: string(char), Code: char}))
+	}
+	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	projects := testutil.StripANSI(model.View().Content)
+	for _, marker := range []string{"OXIDE", "CASE FILES", "CASE // REAGENT"} {
+		if !strings.Contains(projects, marker) {
+			t.Fatalf("projects session view missing %q:\n%s", marker, projects)
+		}
+	}
+
+	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: ":", Code: ':'}))
+	for _, char := range "exit" {
+		model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: string(char), Code: char}))
+	}
+	_, quit := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	if quit == nil {
+		t.Fatal("exit command returned no Bubble Tea command")
+	}
+	if _, ok := quit().(tea.QuitMsg); !ok {
+		t.Fatalf("exit command produced %T, want tea.QuitMsg", quit())
+	}
+}
+
+func updateSessionModel(model tea.Model, msg tea.Msg) tea.Model {
+	updated, _ := model.Update(msg)
+	return updated
 }
 
 func TestIPLimiterRejectsBeyondLimitAndReusesReleasedSlot(t *testing.T) {

@@ -226,10 +226,22 @@ try {
             throw "SSH output did not contain $($missingText -join ' and ').`n$sshOutput"
         }
 
-        Write-Warning 'Windows OpenSSH negotiated a PTY but redirected input did not produce capturable TUI content. Startup and SSH negotiation passed; verify OXIDE and CASE FILES with the interactive README command.'
+        $goPath = Resolve-RequiredCommand -Name 'go.exe'
+        & $goPath test -count=1 ./internal/server -run '^TestLocalSmokeSessionRendersProjectsAndExits$'
+        if ($LASTEXITCODE -ne 0) {
+            throw "The fallback session-render assertion failed with exit code $LASTEXITCODE."
+        }
+
+        Write-Warning 'Windows OpenSSH negotiated a PTY but redirected input did not expose capturable TUI content. The SSH transport and automated session renderer passed, but this run did not observe render markers over the SSH client; perform the interactive README check for end-to-end terminal confirmation.'
+        Write-Host 'SSH_SMOKE_TRANSPORT=PASS'
+        Write-Host 'SSH_SMOKE_RENDER=FALLBACK_SESSION_ASSERTION_PASS'
+        Write-Host 'SSH_SMOKE_INTERACTIVE=REQUIRED'
     }
     else {
-        Write-Host "SSH smoke test passed on 127.0.0.1:$port (OXIDE and CASE FILES rendered)."
+        Write-Host "SSH smoke test passed on 127.0.0.1:$port (OXIDE and CASE FILES rendered over SSH)."
+        Write-Host 'SSH_SMOKE_TRANSPORT=PASS'
+        Write-Host 'SSH_SMOKE_RENDER=VERIFIED_OVER_SSH'
+        Write-Host 'SSH_SMOKE_INTERACTIVE=NOT_REQUIRED'
     }
 }
 finally {

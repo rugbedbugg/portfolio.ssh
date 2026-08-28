@@ -42,7 +42,9 @@ go build -o bin/portfolio-ssh.exe ./cmd/portfolio-ssh
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke.ps1
 ```
 
-The smoke test creates an isolated temporary directory, generates a disposable Ed25519 host key, starts the server on an unused loopback port, connects with `ssh -tt`, verifies the `OXIDE` and `CASE FILES` output, and removes its temporary files. Windows OpenSSH can negotiate a remote PTY yet produce no capturable TUI content when both input and output are redirected. If the script reports that limitation, its automated startup and SSH-negotiation checks still passed; connect from an interactive terminal, enter `:projects`, confirm `OXIDE` and `CASE FILES` are visible, then enter `:exit`.
+The smoke test creates an isolated temporary directory, generates a disposable Ed25519 host key, starts the server on an unused loopback port, connects with `ssh -tt`, verifies the `OXIDE` and `CASE FILES` output, and removes its temporary files. Its final machine-readable lines distinguish `SSH_SMOKE_RENDER=VERIFIED_OVER_SSH` from the Windows redirected-PTY fallback.
+
+Windows OpenSSH can negotiate a remote PTY yet produce no capturable TUI content when both input and output are redirected. In that case the script runs `TestLocalSmokeSessionRendersProjectsAndExits`, which drives the same per-session model factory through `:projects` and `:exit` and asserts `OXIDE`, `CASE FILES`, project detail, and clean quit behavior. The script then reports `SSH_SMOKE_RENDER=FALLBACK_SESSION_ASSERTION_PASS` and `SSH_SMOKE_INTERACTIVE=REQUIRED`. This proves transport startup plus session rendering separately; it does **not** prove that this OpenSSH client displayed the TUI end to end. For release confirmation, connect from an interactive terminal, enter `:projects`, confirm `OXIDE` and `CASE FILES` are visible, then enter `:exit`.
 
 ## Run locally
 
