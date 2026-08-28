@@ -50,8 +50,10 @@ Generate a persistent development host key once. Do not add the private key to v
 
 ```powershell
 New-Item -ItemType Directory -Force .ssh | Out-Null
-ssh-keygen -t ed25519 -f .ssh/portfolio_ed25519 -N '""'
+ssh-keygen -t ed25519 -f .ssh/portfolio_ed25519
 ```
+
+Press `Enter` at both passphrase prompts to leave the host key unencrypted. The service starts unattended and cannot unlock a passphrase-protected host key.
 
 Start the service with its defaults:
 

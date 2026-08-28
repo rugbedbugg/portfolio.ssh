@@ -34,6 +34,9 @@ function Assert-SafeSmokeDirectory {
 function Quote-NativeArgument {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$Value)
 
+    if ($Value.Length -eq 0) {
+        return '""'
+    }
     if ($Value -notmatch '[\s"]') {
         return $Value
     }
@@ -87,11 +90,37 @@ try {
     $serverStdoutPath = Join-Path $smokeDirectory 'server.stdout.log'
     $serverStderrPath = Join-Path $smokeDirectory 'server.stderr.log'
 
-    # Windows PowerShell 5.1 removes a bare empty string before invoking a
-    # native program. Embedded quotes preserve the empty -N argument.
-    & $sshKeygenPath -q -t ed25519 -N '""' -f $hostKeyPath
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $hostKeyPath -PathType Leaf)) {
-        throw "ssh-keygen failed with exit code $LASTEXITCODE"
+    $keygenArguments = @(
+        '-q',
+        '-t', 'ed25519',
+        '-N', '',
+        '-f', $hostKeyPath
+    ) | ForEach-Object { Quote-NativeArgument -Value $_ }
+    $keygenStartInfo = [Diagnostics.ProcessStartInfo]::new()
+    $keygenStartInfo.FileName = $sshKeygenPath
+    $keygenStartInfo.Arguments = $keygenArguments -join ' '
+    $keygenStartInfo.UseShellExecute = $false
+    $keygenStartInfo.CreateNoWindow = $true
+    $keygenStartInfo.RedirectStandardError = $true
+
+    $keygenProcess = [Diagnostics.Process]::new()
+    $keygenProcess.StartInfo = $keygenStartInfo
+    if (-not $keygenProcess.Start()) {
+        throw 'Failed to start ssh-keygen.'
+    }
+    try {
+        $keygenError = $keygenProcess.StandardError.ReadToEnd()
+        $keygenProcess.WaitForExit()
+        if ($keygenProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $hostKeyPath -PathType Leaf)) {
+            throw "ssh-keygen failed with exit code $($keygenProcess.ExitCode). $keygenError"
+        }
+    }
+    finally {
+        if (-not $keygenProcess.HasExited) {
+            $keygenProcess.Kill()
+            $keygenProcess.WaitForExit()
+        }
+        $keygenProcess.Dispose()
     }
     New-Item -ItemType File -Path $knownHostsPath -Force | Out-Null
 
