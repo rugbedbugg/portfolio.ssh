@@ -198,12 +198,15 @@ func serveUntilContext(ctx context.Context, srv *ssh.Server) error {
 		return err
 	case <-ctx.Done():
 		slog.Info("shutting down SSH portfolio server")
+		if err := listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+			return fmt.Errorf("stop accepting SSH connections: %w", err)
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("graceful shutdown: %w", err)
 		}
-		if err := <-listenErr; !errors.Is(err, ssh.ErrServerClosed) {
+		if err := <-listenErr; !errors.Is(err, ssh.ErrServerClosed) && !errors.Is(err, net.ErrClosed) {
 			return err
 		}
 		slog.Info("SSH portfolio server stopped")

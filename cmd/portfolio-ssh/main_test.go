@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -247,6 +248,9 @@ func TestRunWritesSanitizedEnvironmentError(t *testing.T) {
 }
 
 func TestServeUntilContextGracefullyStopsServer(t *testing.T) {
+	previousProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(previousProcs)
+
 	privateKeyPath := writeTestHostKey(t)
 	srv, err := server.New(server.Config{
 		ListenAddress:              "127.0.0.1:0",
@@ -263,8 +267,18 @@ func TestServeUntilContextGracefullyStopsServer(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := serveUntilContext(ctx, srv); err != nil {
-		t.Fatalf("serveUntilContext() error = %v", err)
+	done := make(chan error, 1)
+	go func() {
+		done <- serveUntilContext(ctx, srv)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("serveUntilContext() error = %v", err)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("serveUntilContext() did not stop after cancellation before Serve started")
 	}
 }
 
