@@ -5,8 +5,14 @@
 ## Preview
 
 ```text
+              ████   ███  ████  █████ █   █  ███      ████    ████
+              █   █ █   █ █   █   █   █   █ █   █     █   █  █
+              ████  █████ ████    █   █████ █████     ████   █  ██
+              █     █   █ █  █    █   █   █ █   █     █      █   █
+              █     █   █ █   █   █   █   █ █   █     █     █ ████ █
+
 ┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
-│    Partha P.G.    │    p projects    │    r research    │    c contact     │
+│      a about      │    p projects    │    r research    │    c contact     │
 └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
 
 > ReAgent                 ReAgent
@@ -19,7 +25,9 @@
     ↑/↓ select   enter copy link   esc back   : command   ? help   q quit
 ```
 
-The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals. Each section carries its own accent colour, which marks the active header cell and fills the selection bar.
+The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals. A single accent colour marks the active header cell, fills the selection bar, and paints the name banner.
+
+The banner draws the profile name in a five-row block font. It takes its rows from the space left over beneath the body rather than enlarging the canvas, and falls back to a single plain line when the terminal is too narrow or too short for the block glyphs.
 
 URLs are emitted as OSC 8 hyperlinks, so terminals that support them make each link clickable. The URL text is always shown in full, so a terminal without OSC 8 support still displays something readable and copyable.
 

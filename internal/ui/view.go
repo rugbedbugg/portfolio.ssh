@@ -13,13 +13,14 @@ const (
 	minimumHeight          = 10
 	maximumContainerWidth  = 80
 	maximumContainerHeight = 30
+	minimumBodyHeight      = 8
 	wideListWidth          = 26
 	minimumListWidth       = 12
 	listGapWidth           = 4
 )
 
 var headerLabels = []string{
-	"Partha P.G.",
+	"a about",
 	"p projects",
 	"r research",
 	"c contact",
@@ -51,25 +52,54 @@ func renderMinimumSize() string {
 func renderContainer(model *Model, width, height int) string {
 	header := renderHeader(model, width)
 	footer := renderFooter(model)
-	bodyHeight := maxInt(1, height-lipgloss.Height(header)-lipgloss.Height(footer)-2)
+
+	// The canvas keeps its fixed size; the nameplate takes its rows from the
+	// slack under the body rather than growing the container.
+	blocks := make([]string, 0, 7)
+	reserved := lipgloss.Height(header) + lipgloss.Height(footer) + 2
+	nameplate, nameplateRows := renderNameplate(model, maxInt(1, width-2), height-reserved-minimumBodyHeight)
+	if nameplate != "" {
+		blocks = append(blocks, lipgloss.PlaceHorizontal(width, lipgloss.Center, nameplate), "")
+		reserved += nameplateRows + 1
+	}
+
+	bodyHeight := maxInt(1, height-reserved)
 	bodyWidth := maxInt(1, width-2)
 	body := renderBody(model, bodyWidth)
 	body = fitBlock(body, bodyWidth, bodyHeight)
 	body = lipgloss.PlaceHorizontal(width, lipgloss.Center, body)
-	return strings.Join([]string{header, "", body, "", footer}, "\n")
+
+	blocks = append(blocks, header, "", body, "", footer)
+	return strings.Join(blocks, "\n")
+}
+
+// renderNameplate shows the name as large block glyphs when both the width and
+// the spare rows allow, degrades to a single styled line when they do not, and
+// disappears only when even one row would starve the body. slack is the number
+// of rows available above the body's minimum.
+func renderNameplate(model *Model, width, slack int) (string, int) {
+	name := model.data.Profile.Name
+	if slack >= bannerRows+1 {
+		if banner := renderBanner(name, width); banner != "" {
+			return banner, bannerRows
+		}
+	}
+	if slack >= 2 {
+		return bannerStyle.Render(ansi.Truncate(name, width, "…")), 1
+	}
+	return "", 0
 }
 
 func renderHeader(model *Model, containerWidth int) string {
 	tableWidth := maxInt(1, containerWidth-2)
 	if tableWidth < responsiveBreakpoint {
-		label := "Partha P.G.  p projects  r research  c contact"
+		label := "a about  p projects  r research  c contact"
 		return lipgloss.PlaceHorizontal(containerWidth, lipgloss.Center, ansi.Truncate(label, tableWidth, ""))
 	}
 
 	// headerLabels is index-aligned with sections, so the active section marks
 	// its own cell.
 	active := sectionIndex(activeSection(model))
-	accent := sectionAccent(activeSection(model))
 
 	innerWidth := tableWidth - len(headerLabels) - 1
 	cellWidths := distributeWidth(innerWidth, len(headerLabels))
@@ -80,7 +110,7 @@ func renderHeader(model *Model, containerWidth int) string {
 		top = append(top, strings.Repeat("─", cellWidths[index]))
 		cell := centerText(label, cellWidths[index])
 		if index == active {
-			cell = activeHeaderStyle(accent).Render(cell)
+			cell = activeHeaderStyle.Render(cell)
 		}
 		middle = append(middle, cell)
 		bottom = append(bottom, strings.Repeat("─", cellWidths[index]))
@@ -145,8 +175,8 @@ func activeSection(model *Model) Section {
 
 func renderAbout(model *Model, width int) []string {
 	profile := model.data.Profile
+	// The name is the banner above; repeating it here would only duplicate it.
 	lines := []string{
-		titleStyle.Render(profile.Name),
 		terminalStateStyle.Render(profile.Tagline),
 	}
 	for _, paragraph := range profile.Biography {
@@ -171,7 +201,7 @@ func renderProjects(model *Model, width int) []string {
 		secondaryCopyStyle.Render(strings.Join(project.Tags, " · ")),
 		primaryCopyStyle.Render(renderURL(project.URL)),
 	}
-	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionProjects, detail: detail})
+	return renderCollection(model, width, collection{labels: labels, selected: selected, detail: detail})
 }
 
 func renderResearch(model *Model, width int) []string {
@@ -191,7 +221,7 @@ func renderResearch(model *Model, width int) []string {
 		secondaryCopyStyle.Render(wrapProse(strings.Join(publication.Authors, ", "), detailWidth(model, width))),
 		primaryCopyStyle.Render(renderURL(publication.URL)),
 	}
-	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionResearch, detail: detail})
+	return renderCollection(model, width, collection{labels: labels, selected: selected, detail: detail})
 }
 
 func renderContact(model *Model, width int) []string {
@@ -208,15 +238,14 @@ func renderContact(model *Model, width int) []string {
 		titleStyle.Render(link.Label),
 		primaryCopyStyle.Render(renderURL(link.URL)),
 	}
-	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionContact, detail: detail})
+	return renderCollection(model, width, collection{labels: labels, selected: selected, detail: detail})
 }
 
 // collection is one section's choice list plus the detail for the current
-// selection, carrying the section so the list can pick up its accent colour.
+// selection.
 type collection struct {
 	labels   []string
 	selected int
-	section  Section
 	detail   []string
 }
 
@@ -239,10 +268,9 @@ func renderCollection(model *Model, width int, data collection) []string {
 }
 
 func renderChoiceList(data collection, width int) []string {
-	accent := sectionAccent(data.section)
 	lines := make([]string, 0, len(data.labels))
 	for index, label := range data.labels {
-		lines = append(lines, renderRecordChoice(index == data.selected, label, width, accent))
+		lines = append(lines, renderRecordChoice(index == data.selected, label, width))
 	}
 	return lines
 }
@@ -294,7 +322,7 @@ func detailWidth(model *Model, width int) int {
 // renderRecordChoice fits the row to width as plain text before styling it, so
 // the inverted bar spans the whole column instead of hugging the label and no
 // truncation ever cuts through an escape sequence.
-func renderRecordChoice(selected bool, label string, width int, accent lipgloss.ANSIColor) string {
+func renderRecordChoice(selected bool, label string, width int) string {
 	marker := "  "
 	if selected {
 		marker = "> "
@@ -304,7 +332,7 @@ func renderRecordChoice(selected bool, label string, width int, accent lipgloss.
 		row += strings.Repeat(" ", padding)
 	}
 	if selected {
-		return selectionStyle(accent).Render(row)
+		return selectionStyle.Render(row)
 	}
 	return primaryCopyStyle.Render(row)
 }

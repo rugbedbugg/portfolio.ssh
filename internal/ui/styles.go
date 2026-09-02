@@ -31,34 +31,20 @@ var (
 				Foreground(cgaBrightCyan)
 )
 
-// sectionAccent gives each section its own colour so the inverted selection bar
-// and the active header cell agree about which section the visitor is in.
-func sectionAccent(section Section) lipgloss.ANSIColor {
-	switch section {
-	case SectionProjects:
-		return terminalShopOrange
-	case SectionResearch:
-		return cgaBrightCyan
-	case SectionContact:
-		return cgaBrightGreen
-	default:
-		return cgaBrightYellow
-	}
-}
-
-// selectionStyle inverts the section accent: the accent becomes the background
-// and the text drops to black. This is the only background-painted element in
-// the interface, so it is unambiguously where the visitor's cursor is.
-func selectionStyle(accent lipgloss.ANSIColor) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(cgaBlack).
-		Background(accent)
-}
+// selectionStyle inverts the accent: orange becomes the background and the text
+// drops to black. This is the only background-painted element in the interface,
+// so it is unambiguously where the visitor's cursor is.
+var selectionStyle = lipgloss.NewStyle().
+	Foreground(cgaBlack).
+	Background(terminalShopOrange)
 
 // activeHeaderStyle marks the current section in the header with the same
 // accent, but foreground-only, so it never competes with the selection bar.
-func activeHeaderStyle(accent lipgloss.ANSIColor) lipgloss.Style {
-	return lipgloss.NewStyle().
-		Foreground(accent).
-		Bold(true)
-}
+var activeHeaderStyle = lipgloss.NewStyle().
+	Foreground(terminalShopOrange).
+	Bold(true)
+
+// bannerStyle paints the name banner in the accent, foreground-only.
+var bannerStyle = lipgloss.NewStyle().
+	Foreground(terminalShopOrange).
+	Bold(true)

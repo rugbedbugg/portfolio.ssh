@@ -301,8 +301,9 @@ func TestNewSessionModelProducesIndependentState(t *testing.T) {
 func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
 	model := newSessionModel(content.Default(), 100, 30)
 	initial := testutil.StripANSI(model.View().Content)
-	if !strings.Contains(initial, "Partha P.G.") {
-		t.Fatalf("initial session view missing profile name:\n%s", initial)
+	// The name renders as block glyphs at this size, so assert the profile copy.
+	if !strings.Contains(initial, content.Default().Profile.Tagline) {
+		t.Fatalf("initial session view missing profile content:\n%s", initial)
 	}
 
 	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: ":", Code: ':'}))
@@ -311,7 +312,7 @@ func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
 	}
 	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 	projects := testutil.StripANSI(model.View().Content)
-	for _, marker := range []string{"Partha P.G.", "p projects", "ReAgent", "https://github.com/rugbedbugg/ReAgent"} {
+	for _, marker := range []string{"a about", "p projects", "ReAgent", "https://github.com/rugbedbugg/ReAgent"} {
 		if !strings.Contains(projects, marker) {
 			t.Fatalf("projects session view missing %q:\n%s", marker, projects)
 		}

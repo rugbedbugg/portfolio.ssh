@@ -12,38 +12,31 @@ import (
 	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
-func TestSelectedRowInvertsSectionAccentAcrossFullColumn(t *testing.T) {
+func TestSelectedRowInvertsTheAccentAcrossFullColumn(t *testing.T) {
 	const columnWidth = 20
-	tests := []struct {
-		name    string
-		section Section
-		want    string
-	}{
-		{name: "projects", section: SectionProjects, want: "\x1b[38;5;0;48;5;202m"},
-		{name: "research", section: SectionResearch, want: "\x1b[38;5;0;48;5;14m"},
-		{name: "contact", section: SectionContact, want: "\x1b[38;5;0;48;5;10m"},
-	}
+	const invertedOrange = "\x1b[38;5;0;48;5;202m"
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			row := renderRecordChoice(true, "ReAgent", columnWidth, sectionAccent(test.section))
+	for _, section := range []Section{SectionProjects, SectionResearch, SectionContact} {
+		model := New(content.Default(), 120, 36)
+		model.openSectionByCommand(section)
+		row := renderChoiceList(collection{labels: []string{"ReAgent"}, selected: 0}, columnWidth)[0]
 
-			if !strings.Contains(row, test.want) {
-				t.Errorf("selected %s row = %q; want inverted accent %q", test.name, row, test.want)
-			}
-			plain := testutil.StripANSI(row)
-			if lipgloss.Width(plain) != columnWidth {
-				t.Errorf("selected row spans %d columns, want the full %d-column bar: %q", lipgloss.Width(plain), columnWidth, plain)
-			}
-			if strings.TrimRight(plain, " ") != "> ReAgent" {
-				t.Fatalf("selected row lost its plain-text marker: %q", plain)
-			}
-		})
+		// Every section shares one accent, so the bar never changes colour.
+		if !strings.Contains(row, invertedOrange) {
+			t.Errorf("selected row in section %v = %q; want inverted orange %q", section, row, invertedOrange)
+		}
+		plain := testutil.StripANSI(row)
+		if lipgloss.Width(plain) != columnWidth {
+			t.Errorf("selected row spans %d columns, want the full %d-column bar: %q", lipgloss.Width(plain), columnWidth, plain)
+		}
+		if strings.TrimRight(plain, " ") != "> ReAgent" {
+			t.Fatalf("selected row lost its plain-text marker: %q", plain)
+		}
 	}
 }
 
 func TestSelectedRowResetsStyleAfterThePaddedBar(t *testing.T) {
-	row := renderRecordChoice(true, "ReAgent", 20, sectionAccent(SectionProjects))
+	row := renderRecordChoice(true, "ReAgent", 20)
 
 	// The reset must follow the padding, otherwise the background bleeds to the
 	// end of the terminal line instead of stopping at the column boundary.
@@ -53,7 +46,7 @@ func TestSelectedRowResetsStyleAfterThePaddedBar(t *testing.T) {
 }
 
 func TestUnselectedRowPaintsNoBackground(t *testing.T) {
-	row := renderRecordChoice(false, "ReAgent", 20, sectionAccent(SectionProjects))
+	row := renderRecordChoice(false, "ReAgent", 20)
 
 	if strings.Contains(row, "\x1b[48;") || strings.Contains(row, "48;5;") {
 		t.Fatalf("unselected row = %q; want no painted background", row)
@@ -65,7 +58,7 @@ func TestWideViewCentersTerminalShopHeader(t *testing.T) {
 	model := New(content.Default(), width, 36)
 	view := testutil.StripANSI(render(model))
 
-	for _, want := range []string{"Partha P.G.", "p projects", "r research", "c contact"} {
+	for _, want := range []string{"a about", "p projects", "r research", "c contact"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("header missing %q:\n%s", want, view)
 		}
@@ -424,7 +417,7 @@ func TestProjectTitlesFitTheChoiceColumnWithoutTruncation(t *testing.T) {
 	model.openSectionByCommand(SectionProjects)
 
 	for _, project := range model.data.Projects {
-		row := renderRecordChoice(false, project.Title, listColumnWidth(model, maximumContainerWidth-2), terminalShopOrange)
+		row := renderRecordChoice(false, project.Title, listColumnWidth(model, maximumContainerWidth-2))
 		if plain := strings.TrimRight(testutil.StripANSI(row), " "); plain != "  "+project.Title {
 			t.Errorf("project choice row = %q, want the untruncated title %q", plain, project.Title)
 		}
