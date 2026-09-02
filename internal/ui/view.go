@@ -81,7 +81,7 @@ func renderNameplate(model *Model, width, slack int) (string, int) {
 	name := model.data.Profile.Name
 	if slack >= bannerRows+1 {
 		if banner := renderBanner(name, width); banner != "" {
-			return banner, bannerRows
+			return bannerStyle.Render(banner), bannerRows
 		}
 	}
 	if slack >= 2 {

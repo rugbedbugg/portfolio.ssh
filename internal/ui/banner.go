@@ -54,13 +54,16 @@ var bannerFont = map[rune][bannerRows]string{
 	// Two columns wide with the dot on the right: the leading blank keeps the
 	// dot from merging into the bottom stroke of a preceding glyph such as G.
 	'.': {"  ", "  ", "  ", "  ", " █"},
-	'-': {"     ", "     ", "█████", "     ", "     "},
+	// Three columns centered: a stroke spanning the full cell would read as a
+	// rule joining its neighbours rather than as a hyphen.
+	'-': {"     ", "     ", " ███ ", "     ", "     "},
 	' ': {"   ", "   ", "   ", "   ", "   "},
 }
 
-// renderBanner draws name in the block font. It returns an empty string when a
-// character has no glyph or the result would not fit in width, so the caller
-// simply omits the banner rather than rendering a broken one.
+// renderBanner draws name in the block font, unstyled — renderNameplate owns
+// the styling for both this and the plain fallback. It returns an empty string
+// when a character has no glyph or the result would not fit in width, so the
+// caller simply omits the banner rather than rendering a broken one.
 func renderBanner(name string, width int) string {
 	characters := []rune(strings.ToUpper(name))
 	glyphs := make([][bannerRows]string, 0, len(characters))
@@ -89,5 +92,5 @@ func renderBanner(name string, width int) string {
 	if lipgloss.Width(rows[0]) > width {
 		return ""
 	}
-	return bannerStyle.Render(strings.Join(rows, "\n"))
+	return strings.Join(rows, "\n")
 }
