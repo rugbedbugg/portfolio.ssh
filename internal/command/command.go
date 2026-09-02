@@ -18,7 +18,6 @@ const (
 	Projects
 	Project
 	Research
-	Dispatches
 	Contact
 	Open
 	Clear
@@ -43,7 +42,6 @@ var commandNames = []string{
 	"about",
 	"clear",
 	"contact",
-	"dispatches",
 	"exit",
 	"help",
 	"ls",
@@ -71,8 +69,6 @@ func Parse(input string, data content.Portfolio) Result {
 		return noArgumentResult(Projects, fields)
 	case "research":
 		return noArgumentResult(Research, fields)
-	case "dispatches":
-		return noArgumentResult(Dispatches, fields)
 	case "contact":
 		return noArgumentResult(Contact, fields)
 	case "clear":

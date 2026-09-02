@@ -11,15 +11,51 @@ import (
 	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
-func TestSelectedRowsUseTerminalShopANSI256Highlight(t *testing.T) {
-	selectedRecord := renderRecordChoice(true, "ReAgent")
-	const terminalShopHighlight = "\x1b[38;5;102;48;5;202m"
-
-	if !strings.Contains(selectedRecord, terminalShopHighlight) {
-		t.Errorf("selected record row = %q; want Terminal Shop orange ANSI-256 highlight %q", selectedRecord, terminalShopHighlight)
+func TestSelectedRowInvertsSectionAccentAcrossFullColumn(t *testing.T) {
+	const columnWidth = 20
+	tests := []struct {
+		name    string
+		section Section
+		want    string
+	}{
+		{name: "projects", section: SectionProjects, want: "\x1b[38;5;0;48;5;202m"},
+		{name: "research", section: SectionResearch, want: "\x1b[38;5;0;48;5;14m"},
+		{name: "contact", section: SectionContact, want: "\x1b[38;5;0;48;5;10m"},
 	}
-	if selected := testutil.StripANSI(selectedRecord); selected != "> ReAgent" {
-		t.Fatalf("selected record row lost its plain-text marker: %q", selected)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			row := renderRecordChoice(true, "ReAgent", columnWidth, sectionAccent(test.section))
+
+			if !strings.Contains(row, test.want) {
+				t.Errorf("selected %s row = %q; want inverted accent %q", test.name, row, test.want)
+			}
+			plain := testutil.StripANSI(row)
+			if lipgloss.Width(plain) != columnWidth {
+				t.Errorf("selected row spans %d columns, want the full %d-column bar: %q", lipgloss.Width(plain), columnWidth, plain)
+			}
+			if strings.TrimRight(plain, " ") != "> ReAgent" {
+				t.Fatalf("selected row lost its plain-text marker: %q", plain)
+			}
+		})
+	}
+}
+
+func TestSelectedRowResetsStyleAfterThePaddedBar(t *testing.T) {
+	row := renderRecordChoice(true, "ReAgent", 20, sectionAccent(SectionProjects))
+
+	// The reset must follow the padding, otherwise the background bleeds to the
+	// end of the terminal line instead of stopping at the column boundary.
+	if !strings.HasSuffix(row, " \x1b[m") {
+		t.Fatalf("selected row = %q; want the style reset after its trailing padding", row)
+	}
+}
+
+func TestUnselectedRowPaintsNoBackground(t *testing.T) {
+	row := renderRecordChoice(false, "ReAgent", 20, sectionAccent(SectionProjects))
+
+	if strings.Contains(row, "\x1b[48;") || strings.Contains(row, "48;5;") {
+		t.Fatalf("unselected row = %q; want no painted background", row)
 	}
 }
 
@@ -241,7 +277,6 @@ func TestEverySectionRendersItsPortfolioContent(t *testing.T) {
 		{name: "about", section: SectionAbout, want: "parts of software people treat as a black box"},
 		{name: "projects", section: SectionProjects, want: "reaction routes"},
 		{name: "research", section: SectionResearch, want: data.Publications[0].Contribution},
-		{name: "dispatches", section: SectionDispatches, want: "averaged over 1000 runs"},
 		{name: "contact", section: SectionContact, want: data.Links[0].URL},
 	}
 
@@ -272,7 +307,6 @@ func TestRecordDetailsKeepPlainURLsCopyable(t *testing.T) {
 	}{
 		{name: "project", section: SectionProjects, url: data.Projects[0].URL},
 		{name: "research", section: SectionResearch, url: data.Publications[0].URL},
-		{name: "dispatch", section: SectionDispatches, url: data.Dispatches[0].URL},
 		{name: "contact", section: SectionContact, url: data.Links[0].URL},
 	}
 

@@ -368,7 +368,7 @@ func TestSSHSessionForcesANSI256HighlightWhenClientReportsDumbTerminal(t *testin
 		t.Fatalf("open projects: %v", err)
 	}
 
-	const terminalShopHighlight = "\x1b[38;5;102;48;5;202m"
+	const terminalShopHighlight = "\x1b[38;5;0;48;5;202m"
 	deadline := time.After(5 * time.Second)
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()

@@ -193,7 +193,6 @@ func TestQuestionMarkShowsCompleteHelpWithoutEnteringCommandMode(t *testing.T) {
 		"projects/ls",
 		"project <id>",
 		"research",
-		"dispatches",
 		"contact",
 		"open <id>",
 		"clear",

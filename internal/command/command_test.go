@@ -24,7 +24,6 @@ func TestParse(t *testing.T) {
 		{name: "projects", input: "projects", kind: Projects},
 		{name: "project", input: "project reagent", kind: Project, target: "reagent"},
 		{name: "research", input: "research", kind: Research},
-		{name: "dispatches", input: "dispatches", kind: Dispatches},
 		{name: "contact", input: "contact", kind: Contact},
 		{name: "open", input: "open github", kind: Open, target: "github"},
 		{name: "clear", input: "clear", kind: Clear},

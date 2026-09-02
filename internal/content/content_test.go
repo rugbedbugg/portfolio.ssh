@@ -18,7 +18,6 @@ func TestDefaultPortfolioContent(t *testing.T) {
 	}{
 		{name: "projects", got: len(portfolio.Projects), want: 4},
 		{name: "publications", got: len(portfolio.Publications), want: 1},
-		{name: "dispatches", got: len(portfolio.Dispatches), want: 2},
 		{name: "contact links", got: len(portfolio.Links), want: 3},
 	}
 	for _, test := range counts {
@@ -56,9 +55,6 @@ func TestDefaultPortfolioContent(t *testing.T) {
 	}
 	for _, publication := range portfolio.Publications {
 		check("publication", publication.ID, publication.URL)
-	}
-	for _, dispatch := range portfolio.Dispatches {
-		check("dispatch", dispatch.ID, dispatch.URL)
 	}
 	for _, link := range portfolio.Links {
 		check("link", link.ID, link.URL)

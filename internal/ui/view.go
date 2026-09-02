@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -14,7 +13,8 @@ const (
 	minimumHeight          = 10
 	maximumContainerWidth  = 80
 	maximumContainerHeight = 30
-	wideListWidth          = 20
+	wideListWidth          = 26
+	listGapWidth           = 4
 )
 
 var headerLabels = []string{
@@ -48,7 +48,7 @@ func renderMinimumSize() string {
 }
 
 func renderContainer(model *Model, width, height int) string {
-	header := renderHeader(width)
+	header := renderHeader(model, width)
 	footer := renderFooter(model)
 	bodyHeight := maxInt(1, height-lipgloss.Height(header)-lipgloss.Height(footer)-2)
 	bodyWidth := maxInt(1, width-2)
@@ -58,12 +58,17 @@ func renderContainer(model *Model, width, height int) string {
 	return strings.Join([]string{header, "", body, "", footer}, "\n")
 }
 
-func renderHeader(containerWidth int) string {
+func renderHeader(model *Model, containerWidth int) string {
 	tableWidth := maxInt(1, containerWidth-2)
 	if tableWidth < responsiveBreakpoint {
 		label := "Partha P.G.  p projects  r research  c contact"
 		return lipgloss.PlaceHorizontal(containerWidth, lipgloss.Center, ansi.Truncate(label, tableWidth, ""))
 	}
+
+	// headerLabels is index-aligned with sections, so the active section marks
+	// its own cell.
+	active := sectionIndex(activeSection(model))
+	accent := sectionAccent(activeSection(model))
 
 	innerWidth := tableWidth - len(headerLabels) - 1
 	cellWidths := distributeWidth(innerWidth, len(headerLabels))
@@ -72,7 +77,11 @@ func renderHeader(containerWidth int) string {
 	bottom := make([]string, 0, len(headerLabels))
 	for index, label := range headerLabels {
 		top = append(top, strings.Repeat("─", cellWidths[index]))
-		middle = append(middle, centerText(label, cellWidths[index]))
+		cell := centerText(label, cellWidths[index])
+		if index == active {
+			cell = activeHeaderStyle(accent).Render(cell)
+		}
+		middle = append(middle, cell)
 		bottom = append(bottom, strings.Repeat("─", cellWidths[index]))
 	}
 
@@ -117,8 +126,6 @@ func renderBody(model *Model, width int) string {
 		lines = renderProjects(model, width)
 	case SectionResearch:
 		lines = renderResearch(model, width)
-	case SectionDispatches:
-		lines = renderDispatches(model, width)
 	case SectionContact:
 		lines = renderContact(model, width)
 	}
@@ -152,9 +159,9 @@ func renderProjects(model *Model, width int) []string {
 		return []string{"no projects"}
 	}
 	selected := safeIndex(model.selected, len(model.data.Projects))
-	choices := make([]string, 0, len(model.data.Projects))
-	for index, project := range model.data.Projects {
-		choices = append(choices, renderRecordChoice(index == selected, project.Title))
+	labels := make([]string, 0, len(model.data.Projects))
+	for _, project := range model.data.Projects {
+		labels = append(labels, project.Title)
 	}
 	project := model.data.Projects[selected]
 	detail := []string{
@@ -163,7 +170,7 @@ func renderProjects(model *Model, width int) []string {
 		secondaryCopyStyle.Render(strings.Join(project.Tags, " · ")),
 		primaryCopyStyle.Render(project.URL),
 	}
-	return renderCollection(model, width, choices, detail)
+	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionProjects, detail: detail})
 }
 
 func renderResearch(model *Model, width int) []string {
@@ -171,9 +178,9 @@ func renderResearch(model *Model, width int) []string {
 		return []string{"no research"}
 	}
 	selected := safeIndex(model.selected, len(model.data.Publications))
-	choices := make([]string, 0, len(model.data.Publications))
-	for index, publication := range model.data.Publications {
-		choices = append(choices, renderRecordChoice(index == selected, publication.Title))
+	labels := make([]string, 0, len(model.data.Publications))
+	for _, publication := range model.data.Publications {
+		labels = append(labels, publication.Title)
 	}
 	publication := model.data.Publications[selected]
 	detail := []string{
@@ -183,26 +190,7 @@ func renderResearch(model *Model, width int) []string {
 		secondaryCopyStyle.Render(wrapProse(strings.Join(publication.Authors, ", "), detailWidth(width))),
 		primaryCopyStyle.Render(publication.URL),
 	}
-	return renderCollection(model, width, choices, detail)
-}
-
-func renderDispatches(model *Model, width int) []string {
-	if len(model.data.Dispatches) == 0 {
-		return []string{"no dispatches"}
-	}
-	selected := safeIndex(model.selected, len(model.data.Dispatches))
-	choices := make([]string, 0, len(model.data.Dispatches))
-	for index, dispatch := range model.data.Dispatches {
-		choices = append(choices, renderRecordChoice(index == selected, dispatch.Title))
-	}
-	dispatch := model.data.Dispatches[selected]
-	detail := []string{
-		titleStyle.Render(wrapProse(dispatch.Title, detailWidth(width))),
-		secondaryCopyStyle.Render(fmt.Sprintf("%s · %s", dispatch.Date, dispatch.Topic)),
-		primaryCopyStyle.Render(wrapProse(dispatch.Excerpt, detailWidth(width))),
-		primaryCopyStyle.Render(dispatch.URL),
-	}
-	return renderCollection(model, width, choices, detail)
+	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionResearch, detail: detail})
 }
 
 func renderContact(model *Model, width int) []string {
@@ -210,60 +198,87 @@ func renderContact(model *Model, width int) []string {
 		return []string{"no contact links"}
 	}
 	selected := safeIndex(model.selected, len(model.data.Links))
-	choices := make([]string, 0, len(model.data.Links))
-	for index, link := range model.data.Links {
-		choices = append(choices, renderRecordChoice(index == selected, link.Label))
+	labels := make([]string, 0, len(model.data.Links))
+	for _, link := range model.data.Links {
+		labels = append(labels, link.Label)
 	}
 	link := model.data.Links[selected]
 	detail := []string{
 		titleStyle.Render(link.Label),
 		primaryCopyStyle.Render(link.URL),
 	}
-	return renderCollection(model, width, choices, detail)
+	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionContact, detail: detail})
 }
 
-func renderCollection(model *Model, width int, choices, detail []string) []string {
+// collection is one section's choice list plus the detail for the current
+// selection, carrying the section so the list can pick up its accent colour.
+type collection struct {
+	labels   []string
+	selected int
+	section  Section
+	detail   []string
+}
+
+func renderCollection(model *Model, width int, data collection) []string {
 	if model.pane == PaneRecord {
-		return detail
+		return data.detail
 	}
 	if width < responsiveBreakpoint {
-		return append(append(choices, ""), detail...)
+		return append(append(renderChoiceList(data, width), ""), data.detail...)
 	}
 
-	listWidth := minInt(wideListWidth, maxInt(1, width/3))
-	gapWidth := 4
-	menu := renderChoiceList(choices, listWidth)
-	right := strings.Join(detail, "\n")
+	listWidth := listColumnWidth(width)
+	menu := strings.Join(renderChoiceList(data, listWidth), "\n")
+	right := strings.Join(data.detail, "\n")
 	menu = fitBlock(menu, listWidth, maxInt(lipgloss.Height(menu), lipgloss.Height(right)))
 	columns := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		menu,
-		strings.Repeat(" ", gapWidth),
+		strings.Repeat(" ", listGapWidth),
 		right,
 	)
 	return strings.Split(columns, "\n")
 }
 
-func renderChoiceList(choices []string, width int) string {
-	lines := make([]string, 0, len(choices))
-	for _, choice := range choices {
-		lines = append(lines, ansi.Truncate(choice, maxInt(1, width), "…"))
+func renderChoiceList(data collection, width int) []string {
+	accent := sectionAccent(data.section)
+	lines := make([]string, 0, len(data.labels))
+	for index, label := range data.labels {
+		lines = append(lines, renderRecordChoice(index == data.selected, label, width, accent))
 	}
-	return strings.Join(lines, "\n")
+	return lines
+}
+
+// listColumnWidth is the single source of truth for the choice/detail split so
+// the menu and the detail column can never disagree about the boundary. The
+// width is content-independent, keeping the divider stable across sections.
+func listColumnWidth(width int) int {
+	return minInt(wideListWidth, maxInt(1, width/2))
 }
 
 func detailWidth(width int) int {
 	if width < responsiveBreakpoint {
 		return width
 	}
-	return maxInt(1, width-minInt(wideListWidth, width/3)-4)
+	return maxInt(1, width-listColumnWidth(width)-listGapWidth)
 }
 
-func renderRecordChoice(selected bool, label string) string {
+// renderRecordChoice fits the row to width as plain text before styling it, so
+// the inverted bar spans the whole column instead of hugging the label and no
+// truncation ever cuts through an escape sequence.
+func renderRecordChoice(selected bool, label string, width int, accent lipgloss.ANSIColor) string {
+	marker := "  "
 	if selected {
-		return selectionStyle.Render("> " + label)
+		marker = "> "
 	}
-	return primaryCopyStyle.Render("  " + label)
+	row := ansi.Truncate(marker+label, maxInt(1, width), "…")
+	if padding := width - lipgloss.Width(row); padding > 0 {
+		row += strings.Repeat(" ", padding)
+	}
+	if selected {
+		return selectionStyle(accent).Render(row)
+	}
+	return primaryCopyStyle.Render(row)
 }
 
 func renderStatus(model *Model) string {

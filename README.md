@@ -99,7 +99,6 @@ At the command prompt, use `Tab` for completion, up/down arrows for command hist
 | `projects` or `ls` | List project case files |
 | `project <id>` | Open one project |
 | `research` | List publications |
-| `dispatches` | List field notes |
 | `contact` | List contact links |
 | `open <id>` | Open one contact record |
 | `clear` | Clear status and command history |

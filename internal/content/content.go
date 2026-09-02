@@ -28,20 +28,9 @@ type Publication struct {
 	Authors      []string
 }
 
-// Dispatch is a dated field note or professional post.
-type Dispatch struct {
-	ID      string
-	Title   string
-	Excerpt string
-	Date    string
-	Topic   string
-	URL     string
-}
-
 // Profile is the subject identity and biography.
 type Profile struct {
 	Name      string
-	Aliases   string
 	Tagline   string
 	Biography []string
 }
@@ -51,13 +40,11 @@ type Portfolio struct {
 	Profile      Profile
 	Projects     []Project
 	Publications []Publication
-	Dispatches   []Dispatch
 	Links        []Link
 }
 
 var defaultProfile = Profile{
 	Name:    "Partha P.G.",
-	Aliases: "Oxide 1-6 // Arsenic 1-6 // rugbedbugg",
 	Tagline: "AI & Low-Level Systems",
 	Biography: []string{
 		"I build things to understand them. My instinct with any system is to take it apart, see why it holds together, and put it back cleaner. That is most of how I learn and how I think.",
@@ -77,11 +64,6 @@ var defaultPublications = []Publication{
 	{ID: "chess960-fpga-sisimpact-2025", Title: "Resource-Efficient FPGA Realization of Chess960 Position Generator for Future Covert Communication Systems", Venue: "IEEE SISIMPACT 2025", Contribution: "Conceptualization, Methodology, Software", URL: "https://doi.org/10.1109/SISIMPACT67725.2025.11439749", Authors: []string{"Naman Goyal", "Partha Pratim Gogoi", "Abhishek Narayan Tripathi", "Naushad Manzoor Laskar"}},
 }
 
-var defaultDispatches = []Dispatch{
-	{ID: "assembly-faster-than-c", Title: `"Assembly is faster than C" is mostly a myth`, Excerpt: "Same array-sum in hand-written asm versus compiler-built C++, same x86_64 machine, averaged over 1000 runs. The hand-written version ran ~1.42x slower. Speed is about how well instructions fit the hardware, not the language.", Date: "2026-01", Topic: "LOW-LEVEL", URL: "https://www.linkedin.com/posts/partha-gogoi-736241308_assembly-language-is-faster-than-cc-activity-7417678944587669504-YXoA"},
-	{ID: "rust-shaders-phone-only-agents", Title: "A summer of Rust, shaders, and phone-only AI agents", Excerpt: "Learned Rust past the hype, rendered a neon endless GLSL pattern, and built an AI agent entirely in Termux with the model running locally on my phone. No IDE, no autocomplete, pure terminal.", Date: "2025-07", Topic: "BUILD LOG", URL: "https://www.linkedin.com/posts/partha-gogoi-736241308_rustlang-glsl-shaders-activity-7347825447226740736-LCln"},
-}
-
 var defaultLinks = []Link{
 	{ID: "github", Label: "GitHub", URL: "https://github.com/rugbedbugg", Description: "Inspect the source code"},
 	{ID: "linkedin", Label: "LinkedIn", URL: "https://www.linkedin.com/in/partha-gogoi-736241308/", Description: "Review the professional record"},
@@ -91,10 +73,9 @@ var defaultLinks = []Link{
 // Default returns a complete portfolio with fresh slices on every call.
 func Default() Portfolio {
 	portfolio := Portfolio{
-		Profile:      Profile{Name: defaultProfile.Name, Aliases: defaultProfile.Aliases, Tagline: defaultProfile.Tagline, Biography: append([]string(nil), defaultProfile.Biography...)},
+		Profile:      Profile{Name: defaultProfile.Name, Tagline: defaultProfile.Tagline, Biography: append([]string(nil), defaultProfile.Biography...)},
 		Projects:     append([]Project(nil), defaultProjects...),
 		Publications: append([]Publication(nil), defaultPublications...),
-		Dispatches:   append([]Dispatch(nil), defaultDispatches...),
 		Links:        append([]Link(nil), defaultLinks...),
 	}
 	for i := range portfolio.Projects {

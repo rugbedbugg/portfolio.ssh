@@ -18,7 +18,6 @@ const (
 	SectionAbout Section = iota
 	SectionProjects
 	SectionResearch
-	SectionDispatches
 	SectionContact
 )
 
@@ -46,15 +45,7 @@ var sections = []Section{
 	SectionContact,
 }
 
-var sectionNames = []string{
-	"about",
-	"projects",
-	"research",
-	"dispatches",
-	"contact",
-}
-
-const helpStatus = "commands: help, about/whoami, projects/ls, project <id>, research, dispatches, contact, open <id>, clear, exit"
+const helpStatus = "commands: help, about/whoami, projects/ls, project <id>, research, contact, open <id>, clear, exit"
 
 // Model holds the portfolio data and a single interactive session's state.
 type Model struct {
@@ -209,8 +200,6 @@ func (m *Model) recordCount() int {
 		return len(m.data.Projects)
 	case SectionResearch:
 		return len(m.data.Publications)
-	case SectionDispatches:
-		return len(m.data.Dispatches)
 	case SectionContact:
 		return len(m.data.Links)
 	default:
@@ -267,8 +256,6 @@ func (m *Model) executeCommand(input string) (tea.Model, tea.Cmd) {
 		m.openProject(result.Target)
 	case command.Research:
 		m.openSectionByCommand(SectionResearch)
-	case command.Dispatches:
-		m.openSectionByCommand(SectionDispatches)
 	case command.Contact:
 		m.openSectionByCommand(SectionContact)
 	case command.Open:
@@ -349,11 +336,6 @@ func (m *Model) recordDescription() string {
 		if m.selected < len(m.data.Publications) {
 			publication := m.data.Publications[m.selected]
 			return publication.Title + "\n" + publication.URL
-		}
-	case SectionDispatches:
-		if m.selected < len(m.data.Dispatches) {
-			dispatch := m.data.Dispatches[m.selected]
-			return dispatch.Title + "\n" + dispatch.URL
 		}
 	case SectionContact:
 		if m.selected < len(m.data.Links) {
