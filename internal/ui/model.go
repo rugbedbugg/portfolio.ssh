@@ -284,10 +284,14 @@ func (m *Model) executeCommand(input string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// openSectionByCommand jumps straight to a section. The status line is cleared
+// with it: a message about the previous section's record would otherwise sit
+// under the new one, describing something no longer on screen.
 func (m *Model) openSectionByCommand(section Section) {
 	m.section = section
 	m.pane = PaneSection
 	m.selected = 0
+	m.status = ""
 }
 
 func (m *Model) openProject(id string) {

@@ -100,10 +100,10 @@ At the command prompt, use `Tab` for completion, up/down arrows for command hist
 | `help` | Show the command summary |
 | `about` or `whoami` | Open the profile |
 | `projects` or `ls` | List project case files |
-| `project <id>` | Open one project |
+| `project <id>` | Select one project |
 | `research` | List publications |
 | `contact` | List contact links |
-| `open <id>` | Open one contact record |
+| `open <id>` | Select one contact link |
 | `clear` | Clear status and command history |
 | `exit` | End the SSH session |
 

@@ -305,3 +305,17 @@ func submit(t *testing.T, model *Model, input string) *Model {
 	model.commandInput.SetValue(input)
 	return updateModel(t, model, specialKey(tea.KeyEnter))
 }
+
+func TestSectionShortcutsClearAStaleStatus(t *testing.T) {
+	model := New(content.Default(), 120, 40)
+	model = updateModel(t, model, key("p"))
+	model = updateModel(t, model, specialKey(tea.KeyEnter))
+	if model.status == "" {
+		t.Fatal("enter on a project set no status to begin with")
+	}
+
+	model = updateModel(t, model, key("c"))
+	if model.status != "" {
+		t.Fatalf("contact section still shows the projects status %q", model.status)
+	}
+}
