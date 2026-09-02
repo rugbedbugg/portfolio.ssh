@@ -27,7 +27,6 @@ type Pane uint8
 const (
 	PaneIndex Pane = iota
 	PaneSection
-	PaneRecord
 )
 
 // Focus identifies which part of the session receives keyboard input.
@@ -119,7 +118,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case "c":
 		m.openSectionByCommand(SectionContact)
 	case "enter":
-		m.openSelected()
+		return m, m.openSelected()
 	case "esc":
 		m.back()
 	case ":":
@@ -185,18 +184,30 @@ func (m *Model) selectionCount() int {
 	return 0
 }
 
-func (m *Model) openSelected() {
+// openSelected enters a section from the index, or hands the selected record's
+// URL to the visitor's clipboard. A server cannot open a browser on the far end
+// of an SSH session, so the link itself is the deliverable.
+func (m *Model) openSelected() tea.Cmd {
 	switch m.pane {
 	case PaneIndex:
 		m.section = sections[m.selected]
 		m.pane = PaneSection
 		m.selected = 0
 	case PaneSection:
-		if m.recordCount() > 0 {
-			m.pane = PaneRecord
-			m.status = m.recordDescription()
-		}
+		return m.copySelectedURL()
 	}
+	return nil
+}
+
+func (m *Model) copySelectedURL() tea.Cmd {
+	url := m.selectedURL()
+	if url == "" {
+		return nil
+	}
+	// Worded as an attempt: OSC 52 is refused by some terminals and by tmux
+	// without set-clipboard, and the session cannot observe the outcome.
+	m.status = "sent to clipboard: " + url
+	return tea.SetClipboard(url)
 }
 
 func (m *Model) recordCount() int {
@@ -215,11 +226,7 @@ func (m *Model) recordCount() int {
 func (m *Model) back() {
 	m.commandInput.Blur()
 	m.focus = FocusNavigation
-	if m.pane == PaneRecord {
-		m.pane = PaneSection
-		m.status = ""
-		return
-	}
+	m.status = ""
 	m.pane = PaneIndex
 	m.selected = sectionIndex(m.section)
 }
@@ -287,9 +294,9 @@ func (m *Model) openProject(id string) {
 	for index, project := range m.data.Projects {
 		if project.ID == id {
 			m.section = SectionProjects
-			m.pane = PaneRecord
+			m.pane = PaneSection
 			m.selected = index
-			m.status = project.Title + "\n" + project.URL
+			m.status = project.Title + " — " + project.URL
 			return
 		}
 	}
@@ -300,9 +307,9 @@ func (m *Model) openLink(id string) {
 	for index, link := range m.data.Links {
 		if link.ID == id {
 			m.section = SectionContact
-			m.pane = PaneRecord
+			m.pane = PaneSection
 			m.selected = index
-			m.status = link.Label + "\n" + link.URL
+			m.status = link.Label + " — " + link.URL
 			return
 		}
 	}
@@ -330,22 +337,21 @@ func (m *Model) recallHistory(delta int) {
 	m.commandInput.SetValue(m.history[m.historyIndex])
 }
 
-func (m *Model) recordDescription() string {
+// selectedURL is the destination for the currently selected record, or an
+// empty string for sections whose records have none.
+func (m *Model) selectedURL() string {
 	switch m.section {
 	case SectionProjects:
 		if m.selected < len(m.data.Projects) {
-			project := m.data.Projects[m.selected]
-			return project.Title + "\n" + project.URL
+			return m.data.Projects[m.selected].URL
 		}
 	case SectionResearch:
 		if m.selected < len(m.data.Publications) {
-			publication := m.data.Publications[m.selected]
-			return publication.Title + "\n" + publication.URL
+			return m.data.Publications[m.selected].URL
 		}
 	case SectionContact:
 		if m.selected < len(m.data.Links) {
-			link := m.data.Links[m.selected]
-			return link.Label + "\n" + link.URL
+			return m.data.Links[m.selected].URL
 		}
 	}
 	return ""

@@ -14,6 +14,7 @@ const (
 	maximumContainerWidth  = 80
 	maximumContainerHeight = 30
 	wideListWidth          = 26
+	minimumListWidth       = 12
 	listGapWidth           = 4
 )
 
@@ -166,9 +167,9 @@ func renderProjects(model *Model, width int) []string {
 	project := model.data.Projects[selected]
 	detail := []string{
 		titleStyle.Render(project.Title),
-		primaryCopyStyle.Render(wrapProse(project.Summary, detailWidth(width))),
+		primaryCopyStyle.Render(wrapProse(project.Summary, detailWidth(model, width))),
 		secondaryCopyStyle.Render(strings.Join(project.Tags, " · ")),
-		primaryCopyStyle.Render(project.URL),
+		primaryCopyStyle.Render(renderURL(project.URL)),
 	}
 	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionProjects, detail: detail})
 }
@@ -184,11 +185,11 @@ func renderResearch(model *Model, width int) []string {
 	}
 	publication := model.data.Publications[selected]
 	detail := []string{
-		titleStyle.Render(wrapProse(publication.Title, detailWidth(width))),
+		titleStyle.Render(wrapProse(publication.Title, detailWidth(model, width))),
 		terminalStateStyle.Render(publication.Venue),
-		primaryCopyStyle.Render(wrapProse(publication.Contribution, detailWidth(width))),
-		secondaryCopyStyle.Render(wrapProse(strings.Join(publication.Authors, ", "), detailWidth(width))),
-		primaryCopyStyle.Render(publication.URL),
+		primaryCopyStyle.Render(wrapProse(publication.Contribution, detailWidth(model, width))),
+		secondaryCopyStyle.Render(wrapProse(strings.Join(publication.Authors, ", "), detailWidth(model, width))),
+		primaryCopyStyle.Render(renderURL(publication.URL)),
 	}
 	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionResearch, detail: detail})
 }
@@ -205,7 +206,7 @@ func renderContact(model *Model, width int) []string {
 	link := model.data.Links[selected]
 	detail := []string{
 		titleStyle.Render(link.Label),
-		primaryCopyStyle.Render(link.URL),
+		primaryCopyStyle.Render(renderURL(link.URL)),
 	}
 	return renderCollection(model, width, collection{labels: labels, selected: selected, section: SectionContact, detail: detail})
 }
@@ -220,14 +221,11 @@ type collection struct {
 }
 
 func renderCollection(model *Model, width int, data collection) []string {
-	if model.pane == PaneRecord {
-		return data.detail
-	}
 	if width < responsiveBreakpoint {
 		return append(append(renderChoiceList(data, width), ""), data.detail...)
 	}
 
-	listWidth := listColumnWidth(width)
+	listWidth := listColumnWidth(model, width)
 	menu := strings.Join(renderChoiceList(data, listWidth), "\n")
 	right := strings.Join(data.detail, "\n")
 	menu = fitBlock(menu, listWidth, maxInt(lipgloss.Height(menu), lipgloss.Height(right)))
@@ -249,18 +247,48 @@ func renderChoiceList(data collection, width int) []string {
 	return lines
 }
 
-// listColumnWidth is the single source of truth for the choice/detail split so
-// the menu and the detail column can never disagree about the boundary. The
-// width is content-independent, keeping the divider stable across sections.
-func listColumnWidth(width int) int {
-	return minInt(wideListWidth, maxInt(1, width/2))
+// longestURLWidth is the width of the widest URL anywhere in the dossier. URLs
+// are never wrapped — a newline would break both hand-copying and the OSC 8
+// span — so the layout has to budget for the longest one up front.
+func longestURLWidth(model *Model) int {
+	widest := 0
+	for _, project := range model.data.Projects {
+		widest = maxInt(widest, lipgloss.Width(project.URL))
+	}
+	for _, publication := range model.data.Publications {
+		widest = maxInt(widest, lipgloss.Width(publication.URL))
+	}
+	for _, link := range model.data.Links {
+		widest = maxInt(widest, lipgloss.Width(link.URL))
+	}
+	return widest
 }
 
-func detailWidth(width int) int {
+// listColumnWidth is the single source of truth for the choice/detail split so
+// the menu and the detail column can never disagree about the boundary. It is
+// measured against the whole dossier rather than the current section, so the
+// divider stays put as the visitor moves between sections, and it yields to the
+// longest URL so an unwrappable link cannot push the canvas past its width.
+func listColumnWidth(model *Model, width int) int {
+	desired := minInt(wideListWidth, maxInt(1, width/2))
+	urlBudget := width - listGapWidth - longestURLWidth(model)
+	return maxInt(minimumListWidth, minInt(desired, urlBudget))
+}
+
+// renderURL marks the URL as an OSC 8 hyperlink so terminals that support it
+// make the link clickable. The URL stays the visible text: terminals without
+// OSC 8 support, and tmux without allow-passthrough, must still show it in full
+// for the visitor to read or copy. Never word-wrap the result — a newline
+// inside the span breaks the link.
+func renderURL(url string) string {
+	return ansi.SetHyperlink(url) + url + ansi.ResetHyperlink()
+}
+
+func detailWidth(model *Model, width int) int {
 	if width < responsiveBreakpoint {
 		return width
 	}
-	return maxInt(1, width-listColumnWidth(width)-listGapWidth)
+	return maxInt(1, width-listColumnWidth(model, width)-listGapWidth)
 }
 
 // renderRecordChoice fits the row to width as plain text before styling it, so
@@ -282,7 +310,7 @@ func renderRecordChoice(selected bool, label string, width int, accent lipgloss.
 }
 
 func renderStatus(model *Model) string {
-	if model.status == "" || model.status == model.recordDescription() {
+	if model.status == "" {
 		return ""
 	}
 	lower := strings.ToLower(model.status)
@@ -323,10 +351,10 @@ func navigationHints(model *Model) string {
 	switch {
 	case model.pane == PaneIndex:
 		return "a about   p projects   r research   c contact   : command   ? help   q quit"
-	case model.pane == PaneRecord || activeSection(model) == SectionAbout:
+	case activeSection(model) == SectionAbout:
 		return "esc back   : command   ? help   q quit"
 	default:
-		return "↑/↓ select   enter open   esc back   : command   ? help   q quit"
+		return "↑/↓ select   enter copy link   esc back   : command   ? help   q quit"
 	}
 }
 

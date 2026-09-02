@@ -9,17 +9,19 @@
 │    Partha P.G.    │    p projects    │    r research    │    c contact     │
 └───────────────────┴──────────────────┴──────────────────┴──────────────────┘
 
-> ReAgent               ReAgent
-  Trionda-Trifecta-26    An agentic retrosynthesis framework that plans
-  ResonanceID-cli       reaction routes with evidence-grounded scoring.
-  HTTP-SVR-200-OK       Python · Agentic · LLM · Scoring
-                        https://github.com/rugbedbugg/ReAgent
+> ReAgent                 ReAgent
+  Trionda-Trifecta-26     An agentic retrosynthesis framework that plans
+  ResonanceID-cli         reaction routes with evidence-grounded scoring.
+  HTTP-SVR-200-OK         Python · Agentic · LLM · Scoring
+                          https://github.com/rugbedbugg/ReAgent
 
 ──────────────────────────────────────────────────────────────────────────────
-                 ↑/↓ select   enter open   esc back   q quit
+    ↑/↓ select   enter copy link   esc back   : command   ? help   q quit
 ```
 
-The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals.
+The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals. Each section carries its own accent colour, which marks the active header cell and fills the selection bar.
+
+URLs are emitted as OSC 8 hyperlinks, so terminals that support them make each link clickable. The URL text is always shown in full, so a terminal without OSC 8 support still displays something readable and copyable.
 
 ## Prerequisites
 
@@ -77,12 +79,13 @@ In navigation mode:
 
 | Key | Action |
 | --- | --- |
+| `a` | Open the profile |
 | `p` | Open projects |
 | `r` | Open research |
 | `c` | Open contact links |
 | `j` / down arrow | Move to the next item |
 | `k` / up arrow | Move to the previous item |
-| `Enter` | Open the selected section or record |
+| `Enter` | Open the selected section, or copy the selected record's URL |
 | `Esc` | Return to the section index |
 | `?` | Show the complete command summary |
 | `:` | Focus the command prompt |

@@ -94,18 +94,36 @@ func TestHeaderShortcutsOpenPrimarySections(t *testing.T) {
 	}
 }
 
-func TestEnterOpensSelectedRecordWithinSection(t *testing.T) {
+func TestEnterCopiesSelectedRecordURLWithoutLeavingTheSection(t *testing.T) {
 	model := New(content.Default(), 120, 40)
 	model = updateModel(t, model, key("j"))
 	model = updateModel(t, model, specialKey(tea.KeyEnter))
 	model = updateModel(t, model, specialKey(tea.KeyDown))
-	model = updateModel(t, model, specialKey(tea.KeyEnter))
 
-	if model.pane != PaneRecord || model.selected != 1 {
-		t.Fatalf("record enter state = pane %v, selected %d; want second project record", model.pane, model.selected)
+	updated, cmd := model.Update(specialKey(tea.KeyEnter))
+	model = updated.(*Model)
+
+	// A server cannot open a browser on the far end of an SSH session, so enter
+	// hands the visitor the URL instead of navigating to a separate pane.
+	if model.pane != PaneSection || model.selected != 1 {
+		t.Fatalf("enter state = pane %v, selected %d; want to stay on the second project", model.pane, model.selected)
 	}
-	if !strings.Contains(model.status, "Trionda-Trifecta-26") {
-		t.Fatalf("record status = %q, want selected project title", model.status)
+	if cmd == nil {
+		t.Fatal("enter on a record issued no clipboard command")
+	}
+	wantURL := content.Default().Projects[1].URL
+	if !strings.Contains(model.status, wantURL) {
+		t.Fatalf("record status = %q, want the copied URL %q", model.status, wantURL)
+	}
+}
+
+func TestEnterOnAboutSectionIssuesNoClipboardCommand(t *testing.T) {
+	model := New(content.Default(), 120, 40)
+	model = updateModel(t, model, key("a"))
+
+	_, cmd := model.Update(specialKey(tea.KeyEnter))
+	if cmd != nil {
+		t.Fatal("enter on the about section issued a clipboard command; want none")
 	}
 }
 
@@ -142,8 +160,8 @@ func TestFocusedEnterSubmitsCommandsAndOpensRequestedContent(t *testing.T) {
 	}
 
 	model = submit(t, model, "project resonance")
-	if model.section != SectionProjects || model.pane != PaneRecord || model.selected != 2 {
-		t.Fatalf("project resonance state = section %v, pane %v, selected %d; want ResonanceID-cli record", model.section, model.pane, model.selected)
+	if model.section != SectionProjects || model.pane != PaneSection || model.selected != 2 {
+		t.Fatalf("project resonance state = section %v, pane %v, selected %d; want the ResonanceID-cli record selected in place", model.section, model.pane, model.selected)
 	}
 	if !strings.Contains(model.status, "ResonanceID-cli") || !strings.Contains(model.status, "https://github.com/rugbedbugg/ResonanceID-cli") {
 		t.Fatalf("project resonance status = %q, want title and copyable URL", model.status)

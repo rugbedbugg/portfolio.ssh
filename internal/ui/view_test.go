@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/rugbedbugg/portfolio.ssh/internal/content"
 	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
@@ -172,7 +173,7 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneSection
 			},
-			want:      []string{"↑/↓ select", "enter open", "esc back", ": command", "? help", "q quit"},
+			want:      []string{"↑/↓ select", "enter copy link", "esc back", ": command", "? help", "q quit"},
 			doNotWant: []string{"tab complete"},
 		},
 		{
@@ -182,16 +183,7 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.pane = PaneSection
 			},
 			want:      []string{"esc back", ": command", "? help", "q quit"},
-			doNotWant: []string{"select", "enter open"},
-		},
-		{
-			name: "record detail",
-			configure: func(model *Model) {
-				model.section = SectionProjects
-				model.pane = PaneRecord
-			},
-			want:      []string{"esc back", ": command", "? help", "q quit"},
-			doNotWant: []string{"select", "enter open"},
+			doNotWant: []string{"select", "enter copy"},
 		},
 		{
 			name: "command input",
@@ -298,7 +290,7 @@ func normalizeWhitespace(value string) string {
 	return strings.Join(strings.Fields(value), " ")
 }
 
-func TestRecordDetailsKeepPlainURLsCopyable(t *testing.T) {
+func TestRecordDetailsExposeURLsAsClickableHyperlinks(t *testing.T) {
 	data := content.Default()
 	tests := []struct {
 		name    string
@@ -314,15 +306,17 @@ func TestRecordDetailsKeepPlainURLsCopyable(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			model := New(data, 180, 36)
 			model.section = test.section
-			model.pane = PaneRecord
+			model.pane = PaneSection
 
 			raw := render(model)
 			view := testutil.StripANSI(raw)
+			// The URL stays the visible text so terminals without OSC 8 support
+			// still show something the visitor can read and copy by hand.
 			if !strings.Contains(view, test.url) {
 				t.Fatalf("%s detail missing contiguous URL %q:\n%s", test.name, test.url, view)
 			}
-			if strings.Contains(raw, "\x1b]8;") {
-				t.Fatalf("%s detail wraps URL in an OSC 8 hyperlink", test.name)
+			if !strings.Contains(raw, ansi.SetHyperlink(test.url)) {
+				t.Fatalf("%s detail does not mark %q as an OSC 8 hyperlink", test.name, test.url)
 			}
 		})
 	}
@@ -376,10 +370,11 @@ func TestResponsiveViewsDoNotOverflowTerminalWidth(t *testing.T) {
 }
 
 func TestNarrowResearchDetailWrapsNonURLLinesWithinTerminalWidth(t *testing.T) {
-	const width = 50
+	// Below the responsive breakpoint, where the layout stacks into one column.
+	const width = 44
 	model := New(content.Default(), width, 24)
 	model.section = SectionResearch
-	model.pane = PaneRecord
+	model.pane = PaneSection
 	publicationURL := model.data.Publications[0].URL
 	contentWidth := width
 
@@ -400,5 +395,38 @@ func TestNarrowResearchDetailWrapsNonURLLinesWithinTerminalWidth(t *testing.T) {
 	view := testutil.StripANSI(render(model))
 	if !strings.Contains(view, "https://doi.org/") || !strings.Contains(view, "5.11439749") {
 		t.Fatalf("rendered narrow research detail obscures the publication URL:\n%s", view)
+	}
+}
+
+func TestCanvasNeverExceedsTheTerminalWidth(t *testing.T) {
+	// The longest URL is never wrapped, so it competes with the choice list for
+	// horizontal space. This guards the split from letting it overflow.
+	widths := []int{80, 100, 120, 160}
+	sectionsUnderTest := []Section{SectionAbout, SectionProjects, SectionResearch, SectionContact}
+
+	for _, width := range widths {
+		for _, section := range sectionsUnderTest {
+			model := New(content.Default(), width, 30)
+			model.openSectionByCommand(section)
+
+			for number, line := range strings.Split(testutil.StripANSI(render(model)), "\n") {
+				if got := lipgloss.Width(line); got > width {
+					t.Fatalf("section %v at terminal width %d rendered line %d at %d columns: %q",
+						section, width, number+1, got, line)
+				}
+			}
+		}
+	}
+}
+
+func TestProjectTitlesFitTheChoiceColumnWithoutTruncation(t *testing.T) {
+	model := New(content.Default(), maximumContainerWidth, 30)
+	model.openSectionByCommand(SectionProjects)
+
+	for _, project := range model.data.Projects {
+		row := renderRecordChoice(false, project.Title, listColumnWidth(model, maximumContainerWidth-2), terminalShopOrange)
+		if plain := strings.TrimRight(testutil.StripANSI(row), " "); plain != "  "+project.Title {
+			t.Errorf("project choice row = %q, want the untruncated title %q", plain, project.Title)
+		}
 	}
 }
