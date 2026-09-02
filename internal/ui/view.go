@@ -292,35 +292,46 @@ func renderStatus(model *Model) string {
 	return successStyle.Render(model.status)
 }
 
+// commandInputWidth sizes the command line to the centered canvas rather than
+// the raw terminal, so a wide client cannot push the prompt past the layout.
+func commandInputWidth(terminalWidth int) int {
+	container := minInt(maxInt(1, terminalWidth), maximumContainerWidth)
+	return maxInt(1, container-2)
+}
+
+// renderFooter always occupies three rows — rule, command line, hints — so
+// entering command mode never shifts the body or clips its last line.
 func renderFooter(model *Model) string {
 	containerWidth := minInt(maxInt(1, model.width), maximumContainerWidth)
 	width := maxInt(1, containerWidth-2)
-	var hints string
+
+	commandLine := ""
+	hints := navigationHints(model)
 	if model.focus == FocusCommand {
-		hints = renderCommandFooter(model, width)
-	} else {
-		switch {
-		case model.pane == PaneIndex:
-			hints = "p projects   r research   c contact   q quit"
-		case model.pane == PaneRecord || activeSection(model) == SectionAbout:
-			hints = "esc back   q quit"
-		default:
-			hints = "↑/↓ select   enter open   esc back   q quit"
-		}
+		commandLine = model.commandInput.View()
+		hints = "tab complete   ↑/↓ history   esc cancel   enter run"
 	}
-	hints = ansi.Truncate(hints, width, "")
-	rule := strings.Repeat("─", width)
-	return lipgloss.PlaceHorizontal(containerWidth, lipgloss.Center, rule) + "\n" +
-		lipgloss.PlaceHorizontal(containerWidth, lipgloss.Center, hints)
+
+	return strings.Join([]string{
+		centerLine(containerWidth, strings.Repeat("─", width)),
+		centerLine(containerWidth, ansi.Truncate(commandLine, width, "")),
+		centerLine(containerWidth, ansi.Truncate(hints, width, "")),
+	}, "\n")
 }
 
-func renderCommandFooter(model *Model, width int) string {
-	input := model.commandInput.View()
-	hints := "tab complete   ↑/↓ history   esc cancel   enter run"
-	if available := width - lipgloss.Width(hints) - 3; available > 2 {
-		return ansi.Truncate(input, available, "") + "   " + hints
+func navigationHints(model *Model) string {
+	switch {
+	case model.pane == PaneIndex:
+		return "a about   p projects   r research   c contact   : command   ? help   q quit"
+	case model.pane == PaneRecord || activeSection(model) == SectionAbout:
+		return "esc back   : command   ? help   q quit"
+	default:
+		return "↑/↓ select   enter open   esc back   : command   ? help   q quit"
 	}
-	return ansi.Truncate(input, width, "")
+}
+
+func centerLine(containerWidth int, value string) string {
+	return lipgloss.PlaceHorizontal(containerWidth, lipgloss.Center, value)
 }
 
 func fitBlock(content string, width, height int) string {

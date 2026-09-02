@@ -163,8 +163,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 		{
 			name:      "home",
 			configure: func(*Model) {},
-			want:      []string{"p projects", "r research", "c contact", "q quit"},
-			doNotWant: []string{"select", "open", "back", "help", "command"},
+			want:      []string{"a about", "p projects", "r research", "c contact", ": command", "? help", "q quit"},
+			doNotWant: []string{"select", "open", "back"},
 		},
 		{
 			name: "project list",
@@ -172,8 +172,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneSection
 			},
-			want:      []string{"↑/↓ select", "enter open", "esc back", "q quit"},
-			doNotWant: []string{"help", "command"},
+			want:      []string{"↑/↓ select", "enter open", "esc back", ": command", "? help", "q quit"},
+			doNotWant: []string{"tab complete"},
 		},
 		{
 			name: "about detail",
@@ -181,8 +181,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionAbout
 				model.pane = PaneSection
 			},
-			want:      []string{"esc back", "q quit"},
-			doNotWant: []string{"select", "enter open", "help", "command"},
+			want:      []string{"esc back", ": command", "? help", "q quit"},
+			doNotWant: []string{"select", "enter open"},
 		},
 		{
 			name: "record detail",
@@ -190,8 +190,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneRecord
 			},
-			want:      []string{"esc back", "q quit"},
-			doNotWant: []string{"select", "enter open", "help", "command"},
+			want:      []string{"esc back", ": command", "? help", "q quit"},
+			doNotWant: []string{"select", "enter open"},
 		},
 		{
 			name: "command input",

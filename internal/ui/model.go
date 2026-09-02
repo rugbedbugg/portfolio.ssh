@@ -65,7 +65,10 @@ type Model struct {
 func New(data content.Portfolio, width, height int) *Model {
 	input := textinput.New()
 	input.Prompt = ": "
-	input.SetWidth(width)
+	styles := input.Styles()
+	styles.Focused.Prompt = promptStyle
+	input.SetStyles(styles)
+	input.SetWidth(commandInputWidth(width))
 
 	return &Model{
 		data:         data,
@@ -89,7 +92,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if resize, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = resize.Width
 		m.height = resize.Height
-		m.commandInput.SetWidth(resize.Width)
+		m.commandInput.SetWidth(commandInputWidth(resize.Width))
 		return m, nil
 	}
 
@@ -107,6 +110,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.move(1)
 	case "k", "up":
 		m.move(-1)
+	case "a":
+		m.openSectionByCommand(SectionAbout)
 	case "p":
 		m.openSectionByCommand(SectionProjects)
 	case "r":

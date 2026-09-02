@@ -28,8 +28,13 @@ func TestWindowResizeUpdatesSessionAndCommandInputWidth(t *testing.T) {
 	if model.width != 84 || model.height != 28 {
 		t.Fatalf("resize dimensions = %dx%d, want 84x28", model.width, model.height)
 	}
-	if model.commandInput.Width() != 84 {
-		t.Fatalf("resize command input width = %d, want 84", model.commandInput.Width())
+	// The command line follows the centered canvas, not the raw terminal, so a
+	// wide client cannot push the prompt past the layout.
+	if want := commandInputWidth(84); model.commandInput.Width() != want {
+		t.Fatalf("resize command input width = %d, want canvas width %d", model.commandInput.Width(), want)
+	}
+	if model.commandInput.Width() >= 84 {
+		t.Fatalf("command input width %d was not clamped below the 84-column terminal", model.commandInput.Width())
 	}
 }
 
