@@ -37,8 +37,8 @@ func TestNavigationWrapsAcrossSectionIndex(t *testing.T) {
 	model := New(content.Default(), 120, 40)
 
 	model = updateModel(t, model, key("k"))
-	if model.selected != int(SectionContact) {
-		t.Fatalf("k from first section selected %d, want contact index %d", model.selected, SectionContact)
+	if model.selected != len(sections)-1 || sections[model.selected] != SectionContact {
+		t.Fatalf("k from first section selected %d (%v), want final contact section", model.selected, sections[model.selected])
 	}
 	model = updateModel(t, model, key("j"))
 	if model.selected != 0 {
@@ -65,6 +65,27 @@ func TestEnterOpensSelectedSectionAndEscapeReturnsToIndex(t *testing.T) {
 	model = updateModel(t, model, specialKey(tea.KeyEscape))
 	if model.pane != PaneIndex || model.selected != int(SectionProjects) {
 		t.Fatalf("escape state = pane %v, selected %d; want projects section index", model.pane, model.selected)
+	}
+}
+
+func TestHeaderShortcutsOpenPrimarySections(t *testing.T) {
+	tests := []struct {
+		key     string
+		section Section
+	}{
+		{key: "p", section: SectionProjects},
+		{key: "r", section: SectionResearch},
+		{key: "c", section: SectionContact},
+	}
+
+	for _, test := range tests {
+		t.Run(test.key, func(t *testing.T) {
+			model := New(content.Default(), 120, 36)
+			model = updateModel(t, model, key(test.key))
+			if model.section != test.section || model.pane != PaneSection {
+				t.Fatalf("%s shortcut state = section %v, pane %v; want section %v pane %v", test.key, model.section, model.pane, test.section, PaneSection)
+			}
+		})
 	}
 }
 

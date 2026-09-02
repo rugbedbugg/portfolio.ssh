@@ -43,7 +43,6 @@ var sections = []Section{
 	SectionAbout,
 	SectionProjects,
 	SectionResearch,
-	SectionDispatches,
 	SectionContact,
 }
 
@@ -117,6 +116,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.move(1)
 	case "k", "up":
 		m.move(-1)
+	case "p":
+		m.openSectionByCommand(SectionProjects)
+	case "r":
+		m.openSectionByCommand(SectionResearch)
+	case "c":
+		m.openSectionByCommand(SectionContact)
 	case "enter":
 		m.openSelected()
 	case "esc":
@@ -216,8 +221,22 @@ func (m *Model) recordCount() int {
 func (m *Model) back() {
 	m.commandInput.Blur()
 	m.focus = FocusNavigation
+	if m.pane == PaneRecord {
+		m.pane = PaneSection
+		m.status = ""
+		return
+	}
 	m.pane = PaneIndex
-	m.selected = int(m.section)
+	m.selected = sectionIndex(m.section)
+}
+
+func sectionIndex(section Section) int {
+	for index, candidate := range sections {
+		if candidate == section {
+			return index
+		}
+	}
+	return 0
 }
 
 func (m *Model) executeCommand(input string) (tea.Model, tea.Cmd) {
@@ -345,7 +364,10 @@ func (m *Model) recordDescription() string {
 	return ""
 }
 
-// View renders the responsive CGA dossier for the current session state.
+// View renders the portfolio in an alternate screen so updates never leave
+// partial frames in the visitor's terminal scrollback.
 func (m *Model) View() tea.View {
-	return tea.NewView(render(m))
+	view := tea.NewView(render(m))
+	view.AltScreen = true
+	return view
 }

@@ -216,7 +216,7 @@ try {
         $sshProcess.Dispose()
     }
 
-    $missingText = @(@('OXIDE', 'CASE FILES') | Where-Object { -not $sshOutput.Contains($_) })
+    $missingText = @(@('Partha P.G.', 'ReAgent') | Where-Object { -not $sshOutput.Contains($_) })
     if ($missingText.Count -gt 0) {
         $terminalProbe = [string][char]27 + '[?2026$p'
         $redirectedWindowsPty = $missingText.Count -eq 2 -and
@@ -238,7 +238,7 @@ try {
         Write-Host 'SSH_SMOKE_INTERACTIVE=REQUIRED'
     }
     else {
-        Write-Host "SSH smoke test passed on 127.0.0.1:$port (OXIDE and CASE FILES rendered over SSH)."
+        Write-Host "SSH smoke test passed on 127.0.0.1:$port (Partha P.G. and ReAgent rendered over SSH)."
         Write-Host 'SSH_SMOKE_TRANSPORT=PASS'
         Write-Host 'SSH_SMOKE_RENDER=VERIFIED_OVER_SSH'
         Write-Host 'SSH_SMOKE_INTERACTIVE=NOT_REQUIRED'

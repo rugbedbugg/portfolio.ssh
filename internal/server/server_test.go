@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -300,8 +301,8 @@ func TestNewSessionModelProducesIndependentState(t *testing.T) {
 func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
 	model := newSessionModel(content.Default(), 100, 30)
 	initial := testutil.StripANSI(model.View().Content)
-	if !strings.Contains(initial, "OXIDE") {
-		t.Fatalf("initial session view missing OXIDE marker:\n%s", initial)
+	if !strings.Contains(initial, "Partha P.G.") {
+		t.Fatalf("initial session view missing profile name:\n%s", initial)
 	}
 
 	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Text: ":", Code: ':'}))
@@ -310,7 +311,7 @@ func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
 	}
 	model = updateSessionModel(model, tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
 	projects := testutil.StripANSI(model.View().Content)
-	for _, marker := range []string{"OXIDE", "CASE FILES", "CASE // REAGENT"} {
+	for _, marker := range []string{"Partha P.G.", "p projects", "ReAgent", "https://github.com/rugbedbugg/ReAgent"} {
 		if !strings.Contains(projects, marker) {
 			t.Fatalf("projects session view missing %q:\n%s", marker, projects)
 		}
@@ -326,6 +327,109 @@ func TestLocalSmokeSessionRendersProjectsAndExits(t *testing.T) {
 	}
 	if _, ok := quit().(tea.QuitMsg); !ok {
 		t.Fatalf("exit command produced %T, want tea.QuitMsg", quit())
+	}
+}
+
+func TestSSHSessionForcesANSI256HighlightWhenClientReportsDumbTerminal(t *testing.T) {
+	hostKeyPath, _ := writeHostKey(t)
+	srv, err := New(Config{
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                hostKeyPath,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        1,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
+	}, content.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := testsession.Listen(t, srv)
+
+	sess, err := testsession.NewClientSession(t, addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.RequestPty("dumb", 30, 100, nil); err != nil {
+		t.Fatalf("request dumb PTY: %v", err)
+	}
+	inputReader, inputWriter := io.Pipe()
+	t.Cleanup(func() {
+		_ = inputReader.Close()
+		_ = inputWriter.Close()
+	})
+	var output synchronizedBuffer
+	sess.Stdin = inputReader
+	sess.Stdout = &output
+	if err := sess.Shell(); err != nil {
+		t.Fatalf("start session: %v", err)
+	}
+	if _, err := inputWriter.Write([]byte("p")); err != nil {
+		t.Fatalf("open projects: %v", err)
+	}
+
+	const terminalShopHighlight = "\x1b[38;5;102;48;5;202m"
+	deadline := time.After(5 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for !strings.Contains(output.String(), terminalShopHighlight) {
+		select {
+		case <-ticker.C:
+		case <-deadline:
+			t.Fatalf("dumb-terminal output contains no Terminal Shop ANSI-256 highlight %q: %q", terminalShopHighlight, output.String())
+		}
+	}
+	if _, err := inputWriter.Write([]byte("q")); err != nil {
+		t.Fatalf("quit session: %v", err)
+	}
+	if err := sess.Wait(); err != nil {
+		t.Fatalf("wait for session: %v", err)
+	}
+}
+
+func TestSSHSessionUsesAlternateScreen(t *testing.T) {
+	hostKeyPath, _ := writeHostKey(t)
+	srv, err := New(Config{
+		ListenAddress:              "127.0.0.1:2222",
+		HostKeyPath:                hostKeyPath,
+		IdleTimeout:                time.Minute,
+		MaxSession:                 time.Hour,
+		MaxConnectionsPerIP:        1,
+		MaxConnectionAttemptsPerIP: 10,
+		ConnectionAttemptWindow:    time.Minute,
+	}, content.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := testsession.Listen(t, srv)
+
+	sess, err := testsession.NewClientSession(t, addr, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.RequestPty("xterm-256color", 30, 100, nil); err != nil {
+		t.Fatalf("request PTY: %v", err)
+	}
+	var output bytes.Buffer
+	sess.Stdin = strings.NewReader("q")
+	sess.Stdout = &output
+	if err := sess.Shell(); err != nil {
+		t.Fatalf("start session: %v", err)
+	}
+
+	wait := make(chan error, 1)
+	go func() { wait <- sess.Wait() }()
+	select {
+	case err := <-wait:
+		if err != nil {
+			t.Fatalf("wait for session: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for session to exit")
+	}
+
+	if !strings.Contains(output.String(), "\x1b[?1049h") {
+		t.Fatalf("SSH session did not enter the alternate screen: %q", output.String())
 	}
 }
 
@@ -482,6 +586,23 @@ type stubSession struct {
 	remote    net.Addr
 	pty       bool
 	exitCodes []int
+}
+
+type synchronizedBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(data)
+}
+
+func (b *synchronizedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }
 
 func (s *stubSession) Close() error                                   { return nil }

@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"image/color"
 	"strings"
 	"testing"
 
@@ -12,30 +11,109 @@ import (
 	"github.com/rugbedbugg/portfolio.ssh/internal/testutil"
 )
 
-func TestCanonicalCGAStylesResolveToNamedVisualHues(t *testing.T) {
-	colors := []struct {
-		name string
-		got  lipgloss.ANSIColor
-		want color.RGBA
-	}{
-		{name: "black", got: cgaBlack, want: color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff}},
-		{name: "green", got: cgaGreen, want: color.RGBA{R: 0x00, G: 0x80, B: 0x00, A: 0xff}},
-		{name: "cyan", got: cgaCyan, want: color.RGBA{R: 0x00, G: 0x80, B: 0x80, A: 0xff}},
-		{name: "red", got: cgaRed, want: color.RGBA{R: 0x80, G: 0x00, B: 0x00, A: 0xff}},
-		{name: "gray", got: cgaGray, want: color.RGBA{R: 0x80, G: 0x80, B: 0x80, A: 0xff}},
-		{name: "bright green", got: cgaBrightGreen, want: color.RGBA{R: 0x00, G: 0xff, B: 0x00, A: 0xff}},
-		{name: "bright cyan", got: cgaBrightCyan, want: color.RGBA{R: 0x00, G: 0xff, B: 0xff, A: 0xff}},
-		{name: "white", got: cgaWhite, want: color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}},
+func TestSelectedRowsUseTerminalShopANSI256Highlight(t *testing.T) {
+	selectedRecord := renderRecordChoice(true, "ReAgent")
+	const terminalShopHighlight = "\x1b[38;5;102;48;5;202m"
+
+	if !strings.Contains(selectedRecord, terminalShopHighlight) {
+		t.Errorf("selected record row = %q; want Terminal Shop orange ANSI-256 highlight %q", selectedRecord, terminalShopHighlight)
+	}
+	if selected := testutil.StripANSI(selectedRecord); selected != "> ReAgent" {
+		t.Fatalf("selected record row lost its plain-text marker: %q", selected)
+	}
+}
+
+func TestWideViewCentersTerminalShopHeader(t *testing.T) {
+	const width = 120
+	model := New(content.Default(), width, 36)
+	view := testutil.StripANSI(render(model))
+
+	for _, want := range []string{"Partha P.G.", "p projects", "r research", "c contact"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("header missing %q:\n%s", want, view)
+		}
 	}
 
-	for _, test := range colors {
-		t.Run(test.name, func(t *testing.T) {
-			red, green, blue, alpha := test.got.RGBA()
-			got := color.RGBA{R: uint8(red >> 8), G: uint8(green >> 8), B: uint8(blue >> 8), A: uint8(alpha >> 8)}
-			if got != test.want {
-				t.Fatalf("CGA %s resolves to %#v, want %#v", test.name, got, test.want)
-			}
-		})
+	lines := strings.Split(view, "\n")
+	headerLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "┌") {
+			headerLine = line
+			break
+		}
+	}
+	if headerLine == "" {
+		t.Fatalf("view has no Terminal Shop header:\n%s", view)
+	}
+	if got := strings.Index(headerLine, "┌"); got != 21 {
+		t.Fatalf("120-column header begins at column %d, want centered column 21:\n%s", got, view)
+	}
+	if strings.Count(view, "┌") != 1 || strings.Count(view, "└") != 1 {
+		t.Fatalf("view contains bordered content panels in addition to the header:\n%s", view)
+	}
+}
+
+func TestBaseViewLeavesTerminalBackgroundUnpainted(t *testing.T) {
+	model := New(content.Default(), 120, 36)
+	raw := render(model)
+
+	if strings.Contains(raw, "\x1b[48;") {
+		t.Fatalf("base view paints a terminal background: %q", raw)
+	}
+}
+
+func TestPortfolioViewOmitsDossierJargon(t *testing.T) {
+	model := New(content.Default(), 120, 36)
+	view := testutil.StripANSI(render(model))
+
+	for _, unwanted := range []string{
+		"OXIDE",
+		"DOSSIER",
+		"SECTION INDEX",
+		"CASE //",
+		"RECORD //",
+		"CHANNEL //",
+		"CONTRIBUTION //",
+		"STATUS //",
+	} {
+		if strings.Contains(view, unwanted) {
+			t.Errorf("portfolio view contains unnecessary label %q:\n%s", unwanted, view)
+		}
+	}
+}
+
+func TestHeaderIsSeparatedFromBody(t *testing.T) {
+	model := New(content.Default(), 120, 36)
+	lines := strings.Split(testutil.StripANSI(render(model)), "\n")
+
+	headerBottom := -1
+	for index, line := range lines {
+		if strings.Contains(line, "└") {
+			headerBottom = index
+			break
+		}
+	}
+	if headerBottom < 0 || headerBottom+1 >= len(lines) {
+		t.Fatalf("view has no complete header:\n%s", strings.Join(lines, "\n"))
+	}
+	if strings.TrimSpace(lines[headerBottom+1]) != "" {
+		t.Fatalf("body touches header without Terminal Shop spacing:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
+func TestContactShowsDestinationsWithoutRedundantDescriptions(t *testing.T) {
+	model := New(content.Default(), 120, 36)
+	model.section = SectionContact
+	model.pane = PaneSection
+	view := testutil.StripANSI(render(model))
+
+	if !strings.Contains(view, "GitHub") || !strings.Contains(view, model.data.Links[0].URL) {
+		t.Fatalf("contact view omits the selected destination:\n%s", view)
+	}
+	for _, link := range model.data.Links {
+		if strings.Contains(view, link.Description) {
+			t.Errorf("contact view includes redundant description %q:\n%s", link.Description, view)
+		}
 	}
 }
 
@@ -47,10 +125,10 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 		doNotWant []string
 	}{
 		{
-			name:      "section index",
+			name:      "home",
 			configure: func(*Model) {},
-			want:      []string{"j/k MOVE", "ENTER OPEN", "? HELP", ": COMMAND", "q EXIT"},
-			doNotWant: []string{"ESC BACK"},
+			want:      []string{"p projects", "r research", "c contact", "q quit"},
+			doNotWant: []string{"select", "open", "back", "help", "command"},
 		},
 		{
 			name: "project list",
@@ -58,7 +136,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneSection
 			},
-			want: []string{"j/k MOVE", "ENTER OPEN", "ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
+			want:      []string{"↑/↓ select", "enter open", "esc back", "q quit"},
+			doNotWant: []string{"help", "command"},
 		},
 		{
 			name: "about detail",
@@ -66,8 +145,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionAbout
 				model.pane = PaneSection
 			},
-			want:      []string{"ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
-			doNotWant: []string{"j/k MOVE", "ENTER OPEN"},
+			want:      []string{"esc back", "q quit"},
+			doNotWant: []string{"select", "enter open", "help", "command"},
 		},
 		{
 			name: "record detail",
@@ -75,8 +154,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneRecord
 			},
-			want:      []string{"ESC BACK", "? HELP", ": COMMAND", "q EXIT"},
-			doNotWant: []string{"j/k MOVE", "ENTER OPEN"},
+			want:      []string{"esc back", "q quit"},
+			doNotWant: []string{"select", "enter open", "help", "command"},
 		},
 		{
 			name: "command input",
@@ -84,8 +163,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.focus = FocusCommand
 				model.commandInput.Focus()
 			},
-			want:      []string{"TAB COMPLETE", "↑/↓ HISTORY", "ESC CANCEL", "ENTER RUN", ": COMMAND"},
-			doNotWant: []string{"q EXIT", "j/k MOVE"},
+			want:      []string{"tab complete", "↑/↓ history", "esc cancel", "enter run"},
+			doNotWant: []string{"q quit", "select"},
 		},
 	}
 
@@ -115,11 +194,11 @@ func TestWideViewContainsNavigationSelectedProjectAndFooter(t *testing.T) {
 
 	view := testutil.StripANSI(render(model))
 	for _, want := range []string{
-		"CASE FILES",
+		"p projects",
 		"> ReAgent",
 		"An agentic retrosynthesis framework",
 		model.data.Projects[0].URL,
-		": COMMAND",
+		"q quit",
 	} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("wide view missing %q:\n%s", want, view)
@@ -127,15 +206,15 @@ func TestWideViewContainsNavigationSelectedProjectAndFooter(t *testing.T) {
 	}
 }
 
-func TestNarrowIndexDoesNotRenderDossierBesideNavigation(t *testing.T) {
+func TestNarrowHomeShowsOnlyEssentialProfileContent(t *testing.T) {
 	model := New(content.Default(), 50, 24)
 
 	view := testutil.StripANSI(render(model))
-	if !strings.Contains(view, "CASE FILES") {
-		t.Fatalf("narrow index missing navigation:\n%s", view)
+	if !strings.Contains(view, "Partha P.G.") || !strings.Contains(view, model.data.Profile.Tagline) {
+		t.Fatalf("narrow home missing essential profile content:\n%s", view)
 	}
-	if strings.Contains(view, model.data.Profile.Biography[0]) {
-		t.Fatalf("narrow index unexpectedly contains dossier copy:\n%s", view)
+	if strings.Contains(view, model.data.Projects[0].Summary) {
+		t.Fatalf("narrow home unexpectedly contains project details:\n%s", view)
 	}
 }
 
@@ -144,7 +223,7 @@ func TestNarrowDetailIncludesVisibleBackHint(t *testing.T) {
 	model.pane = PaneSection
 
 	view := testutil.StripANSI(render(model))
-	if !strings.Contains(view, "ESC BACK") {
+	if !strings.Contains(view, "esc back") {
 		t.Fatalf("narrow detail missing back hint:\n%s", view)
 	}
 	if !strings.Contains(view, "I build things to understand them.") {
@@ -160,10 +239,10 @@ func TestEverySectionRendersItsPortfolioContent(t *testing.T) {
 		want    string
 	}{
 		{name: "about", section: SectionAbout, want: "parts of software people treat as a black box"},
-		{name: "projects", section: SectionProjects, want: "plans reaction routes"},
+		{name: "projects", section: SectionProjects, want: "reaction routes"},
 		{name: "research", section: SectionResearch, want: data.Publications[0].Contribution},
 		{name: "dispatches", section: SectionDispatches, want: "averaged over 1000 runs"},
-		{name: "contact", section: SectionContact, want: data.Links[0].Description},
+		{name: "contact", section: SectionContact, want: data.Links[0].URL},
 	}
 
 	for _, test := range tests {
@@ -173,11 +252,15 @@ func TestEverySectionRendersItsPortfolioContent(t *testing.T) {
 			model.pane = PaneSection
 
 			view := testutil.StripANSI(render(model))
-			if !strings.Contains(view, test.want) {
+			if !strings.Contains(normalizeWhitespace(view), normalizeWhitespace(test.want)) {
 				t.Fatalf("%s view missing real portfolio content %q:\n%s", test.name, test.want, view)
 			}
 		})
 	}
+}
+
+func normalizeWhitespace(value string) string {
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func TestRecordDetailsKeepPlainURLsCopyable(t *testing.T) {
@@ -231,7 +314,7 @@ func TestResizeRenderingHandlesWideNarrowAndTinyTerminals(t *testing.T) {
 	}
 
 	tiny := testutil.StripANSI(model.View().Content)
-	if !strings.Contains(tiny, "TERMINAL TOO SMALL") || !strings.Contains(tiny, "q EXIT") {
+	if !strings.Contains(tiny, "terminal too small") || !strings.Contains(tiny, "q quit") {
 		t.Fatalf("20x8 view must explain the minimum size and retain an exit hint:\n%s", tiny)
 	}
 }
@@ -264,7 +347,7 @@ func TestNarrowResearchDetailWrapsNonURLLinesWithinTerminalWidth(t *testing.T) {
 	model.section = SectionResearch
 	model.pane = PaneRecord
 	publicationURL := model.data.Publications[0].URL
-	contentWidth := panelContentWidth(width)
+	contentWidth := width
 
 	detail := strings.Join(renderResearch(model, contentWidth), "\n")
 	if !strings.Contains(testutil.StripANSI(detail), publicationURL) {

@@ -18,6 +18,7 @@ import (
 	"charm.land/wish/v2/bubbletea"
 	"charm.land/wish/v2/logging"
 	wishrecover "charm.land/wish/v2/recover"
+	"github.com/charmbracelet/colorprofile"
 	gossh "golang.org/x/crypto/ssh"
 
 	"github.com/rugbedbugg/portfolio.ssh/internal/content"
@@ -76,7 +77,7 @@ func New(cfg Config, portfolio content.Portfolio) (*ssh.Server, error) {
 		wish.WithMaxTimeout(cfg.MaxSession),
 		hardenedBindings(attempts),
 		wish.WithMiddleware(
-			bubbletea.Middleware(sessionModelHandler(portfolio)),
+			bubbletea.MiddlewareWithProgramHandler(sessionProgramHandler(portfolio)),
 			requirePTYMiddleware(),
 			connectionLimitMiddleware(limiter),
 			logging.StructuredMiddleware(),
@@ -141,10 +142,14 @@ func filterSessionRequests(requests <-chan *gossh.Request, filtered chan<- *goss
 	}
 }
 
-func sessionModelHandler(portfolio content.Portfolio) bubbletea.Handler {
-	return func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+func sessionProgramHandler(portfolio content.Portfolio) bubbletea.ProgramHandler {
+	return func(sess ssh.Session) *tea.Program {
 		pty, _, _ := sess.Pty()
-		return newSessionModel(portfolio, pty.Window.Width, pty.Window.Height), nil
+		options := append(
+			bubbletea.MakeOptions(sess),
+			tea.WithColorProfile(colorprofile.ANSI256),
+		)
+		return tea.NewProgram(newSessionModel(portfolio, pty.Window.Width, pty.Window.Height), options...)
 	}
 }
 

@@ -3,48 +3,32 @@ package ui
 import "charm.land/lipgloss/v2"
 
 const (
-	cgaBlack       lipgloss.ANSIColor = 0
-	cgaGreen       lipgloss.ANSIColor = 2
-	cgaCyan        lipgloss.ANSIColor = 6
 	cgaRed         lipgloss.ANSIColor = 1
 	cgaGray        lipgloss.ANSIColor = 8
 	cgaBrightGreen lipgloss.ANSIColor = 10
 	cgaBrightCyan  lipgloss.ANSIColor = 14
-	cgaWhite       lipgloss.ANSIColor = 15
+
+	terminalShopSelectionForeground lipgloss.ANSIColor = 102
+	terminalShopSelectionBackground lipgloss.ANSIColor = 202
 )
 
 var (
-	borderStyle = lipgloss.NewStyle().
-			Background(cgaBlack).
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(cgaCyan).
-			Padding(0, 1)
 	selectionStyle = lipgloss.NewStyle().
-			Foreground(cgaBrightCyan).
-			Background(cgaBlack).
-			Bold(true)
+			Foreground(terminalShopSelectionForeground).
+			Background(terminalShopSelectionBackground)
 	titleStyle = lipgloss.NewStyle().
-			Foreground(cgaBrightCyan).
-			Background(cgaBlack).
 			Bold(true)
 	promptStyle = lipgloss.NewStyle().
 			Foreground(cgaBrightGreen).
-			Background(cgaBlack).
 			Bold(true)
-	primaryCopyStyle = lipgloss.NewStyle().
-				Foreground(cgaWhite).
-				Background(cgaBlack)
+	primaryCopyStyle   = lipgloss.NewStyle()
 	secondaryCopyStyle = lipgloss.NewStyle().
-				Foreground(cgaGray).
-				Background(cgaBlack)
+				Foreground(cgaGray)
 	successStyle = lipgloss.NewStyle().
-			Foreground(cgaBrightGreen).
-			Background(cgaBlack)
+			Foreground(cgaBrightGreen)
 	errorStyle = lipgloss.NewStyle().
 			Foreground(cgaRed).
-			Background(cgaBlack).
 			Bold(true)
 	terminalStateStyle = lipgloss.NewStyle().
-				Foreground(cgaGreen).
-				Background(cgaBlack)
+				Foreground(cgaBrightCyan)
 )

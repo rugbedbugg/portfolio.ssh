@@ -1,25 +1,25 @@
 # portfolio.ssh
 
-`portfolio.ssh` is a read-only personal dossier served through an interactive SSH terminal. Visitors connect with a standard SSH client and browse projects, research, dispatches, and contact links in a responsive CGA-style interface. The service exposes portfolio navigation only; it is not a shell account.
+`portfolio.ssh` is a read-only personal portfolio served through an interactive SSH terminal. Visitors connect with a standard SSH client and browse projects, research, and contact links in a sparse Terminal Shop-style interface. The service exposes portfolio navigation only; it is not a shell account.
 
 ## Preview
 
 ```text
-╔══════════════════════════════════════════════════════════════════╗
-║  OXIDE // DOSSIER                                               ║
-║                                                                  ║
-║  ABOUT   > CASE FILES   RESEARCH   DISPATCHES   CONTACT          ║
-║                                                                  ║
-║  ReAgent                         Python · Planning · Scoring       ║
-║  Trionda-Trifecta-26             Python · ML · Simulation        ║
-║  ResonanceID-cli                 Rust · DSP · SQLite              ║
-║  HTTP-SVR-200-OK                 x86_64 · Linux · Networking      ║
-║                                                                  ║
-║  j/k move   enter open   esc back   ? help   : command   q exit  ║
-╚══════════════════════════════════════════════════════════════════╝
+┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│    Partha P.G.    │    p projects    │    r research    │    c contact     │
+└───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+
+> ReAgent               ReAgent
+  Trionda-Trifecta-26    An agentic retrosynthesis framework that plans
+  ResonanceID-cli       reaction routes with evidence-grounded scoring.
+  HTTP-SVR-200-OK       Python · Agentic · LLM · Scoring
+                        https://github.com/rugbedbugg/ReAgent
+
+──────────────────────────────────────────────────────────────────────────────
+                 ↑/↓ select   enter open   esc back   q quit
 ```
 
-The exact layout adapts to the terminal width and height.
+The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals.
 
 ## Prerequisites
 
@@ -42,9 +42,9 @@ go build -o bin/portfolio-ssh.exe ./cmd/portfolio-ssh
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke.ps1
 ```
 
-The smoke test creates an isolated temporary directory, generates a disposable Ed25519 host key, starts the server on an unused loopback port, connects with `ssh -tt`, verifies the `OXIDE` and `CASE FILES` output, and removes its temporary files. Its final machine-readable lines distinguish `SSH_SMOKE_RENDER=VERIFIED_OVER_SSH` from the Windows redirected-PTY fallback.
+The smoke test creates an isolated temporary directory, generates a disposable Ed25519 host key, starts the server on an unused loopback port, connects with `ssh -tt`, verifies the `Partha P.G.` and `ReAgent` output, and removes its temporary files. Its final machine-readable lines distinguish `SSH_SMOKE_RENDER=VERIFIED_OVER_SSH` from the Windows redirected-PTY fallback.
 
-Windows OpenSSH can negotiate a remote PTY yet produce no capturable TUI content when both input and output are redirected. In that case the script runs `TestLocalSmokeSessionRendersProjectsAndExits`, which drives the same per-session model factory through `:projects` and `:exit` and asserts `OXIDE`, `CASE FILES`, project detail, and clean quit behavior. The script then reports `SSH_SMOKE_RENDER=FALLBACK_SESSION_ASSERTION_PASS` and `SSH_SMOKE_INTERACTIVE=REQUIRED`. This proves transport startup plus session rendering separately; it does **not** prove that this OpenSSH client displayed the TUI end to end. For release confirmation, connect from an interactive terminal, enter `:projects`, confirm `OXIDE` and `CASE FILES` are visible, then enter `:exit`.
+Windows OpenSSH can negotiate a remote PTY yet produce no capturable TUI content when both input and output are redirected. In that case the script runs `TestLocalSmokeSessionRendersProjectsAndExits`, which drives the same per-session model factory through `:projects` and `:exit` and asserts the profile header, selected project, project detail, and clean quit behavior. The script then reports `SSH_SMOKE_RENDER=FALLBACK_SESSION_ASSERTION_PASS` and `SSH_SMOKE_INTERACTIVE=REQUIRED`. This proves transport startup plus session rendering separately; it does **not** prove that this OpenSSH client displayed the TUI end to end. For release confirmation, connect from an interactive terminal, press `p`, confirm `Partha P.G.` and `ReAgent` are visible, then press `q`.
 
 ## Run locally
 
@@ -77,6 +77,9 @@ In navigation mode:
 
 | Key | Action |
 | --- | --- |
+| `p` | Open projects |
+| `r` | Open research |
+| `c` | Open contact links |
 | `j` / down arrow | Move to the next item |
 | `k` / up arrow | Move to the previous item |
 | `Enter` | Open the selected section or record |
