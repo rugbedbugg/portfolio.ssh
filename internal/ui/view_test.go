@@ -75,8 +75,8 @@ func TestWideViewCentersTerminalShopHeader(t *testing.T) {
 	if headerLine == "" {
 		t.Fatalf("view has no Terminal Shop header:\n%s", view)
 	}
-	if got := strings.Index(headerLine, "┌"); got != 21 {
-		t.Fatalf("120-column header begins at column %d, want centered column 21:\n%s", got, view)
+	if got := strings.Index(headerLine, "┌"); got != 16 {
+		t.Fatalf("120-column header begins at column %d, want centered column 16:\n%s", got, view)
 	}
 	if strings.Count(view, "┌") != 1 || strings.Count(view, "└") != 1 {
 		t.Fatalf("view contains bordered content panels in addition to the header:\n%s", view)
@@ -166,8 +166,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionProjects
 				model.pane = PaneSection
 			},
-			want:      []string{"↑/↓ select", "enter copy link", "esc back", ": command", "? help", "q quit"},
-			doNotWant: []string{"tab complete"},
+			want:      []string{"↑/↓ select", "enter copy link", ": command", "? help", "q quit"},
+			doNotWant: []string{"tab complete", "esc back"},
 		},
 		{
 			name: "about detail",
@@ -175,8 +175,8 @@ func TestFooterAdvertisesOnlyContextuallyAvailableKeys(t *testing.T) {
 				model.section = SectionAbout
 				model.pane = PaneSection
 			},
-			want:      []string{"esc back", ": command", "? help", "q quit"},
-			doNotWant: []string{"select", "enter copy"},
+			want:      []string{": command", "? help", "q quit"},
+			doNotWant: []string{"select", "enter copy", "esc back"},
 		},
 		{
 			name: "command input",
@@ -239,13 +239,17 @@ func TestNarrowHomeShowsOnlyEssentialProfileContent(t *testing.T) {
 	}
 }
 
-func TestNarrowDetailIncludesVisibleBackHint(t *testing.T) {
+func TestNarrowDetailKeepsTheFooterAndBiographyVisible(t *testing.T) {
 	model := New(content.Default(), 50, 24)
 	model.pane = PaneSection
 
 	view := testutil.StripANSI(render(model))
-	if !strings.Contains(view, "esc back") {
-		t.Fatalf("narrow detail missing back hint:\n%s", view)
+	if !strings.Contains(view, ": command") {
+		t.Fatalf("narrow detail missing footer hints:\n%s", view)
+	}
+	// esc still returns to the landing pane; it is simply no longer advertised.
+	if strings.Contains(view, "esc back") {
+		t.Fatalf("narrow detail still advertises the back hint:\n%s", view)
 	}
 	if !strings.Contains(view, "I build things to understand them.") {
 		t.Fatalf("narrow detail missing profile biography:\n%s", view)
@@ -260,7 +264,10 @@ func TestEverySectionRendersItsPortfolioContent(t *testing.T) {
 		want    string
 	}{
 		{name: "about", section: SectionAbout, want: "parts of software people treat as a black box"},
-		{name: "projects", section: SectionProjects, want: "reaction routes"},
+		// Projects and research render two columns side by side, so the choice
+		// list interleaves with the detail text line by line. Only a single
+		// token survives that regardless of where the summary wraps.
+		{name: "projects", section: SectionProjects, want: "retrosynthesis"},
 		{name: "research", section: SectionResearch, want: data.Publications[0].Contribution},
 		{name: "contact", section: SectionContact, want: data.Links[0].URL},
 	}

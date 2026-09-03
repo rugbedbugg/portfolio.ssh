@@ -11,7 +11,7 @@ const (
 	responsiveBreakpoint   = 50
 	minimumWidth           = 24
 	minimumHeight          = 10
-	maximumContainerWidth  = 80
+	maximumContainerWidth  = 90
 	maximumContainerHeight = 30
 	minimumBodyHeight      = 8
 	wideListWidth          = 26
@@ -73,15 +73,19 @@ func renderContainer(model *Model, width, height int) string {
 	return strings.Join(blocks, "\n")
 }
 
-// renderNameplate shows the name as large block glyphs when both the width and
-// the spare rows allow, degrades to a single styled line when they do not, and
-// disappears only when even one row would starve the body. slack is the number
-// of rows available above the body's minimum.
+// renderNameplate draws the name in the largest face that fits, degrades to a
+// single styled line when no face does, and disappears only when even one row
+// would starve the body. slack is the number of rows available above the
+// body's minimum. Faces are tried tallest first, so a roomy canvas gets the
+// money face and a cramped one silently steps down.
 func renderNameplate(model *Model, width, slack int) (string, int) {
 	name := model.data.Profile.Name
-	if slack >= bannerRows+1 {
-		if banner := renderBanner(name, width); banner != "" {
-			return bannerStyle.Render(banner), bannerRows
+	for _, face := range []bannerFace{moneyFace, blockFace} {
+		if slack < face.rows+1 {
+			continue
+		}
+		if banner := renderBanner(face, name, width); banner != "" {
+			return bannerStyle.Render(banner), face.rows
 		}
 	}
 	if slack >= 2 {
@@ -380,9 +384,9 @@ func navigationHints(model *Model) string {
 	case model.pane == PaneIndex:
 		return "a about   p projects   r research   c contact   : command   ? help   q quit"
 	case activeSection(model) == SectionAbout:
-		return "esc back   : command   ? help   q quit"
+		return ": command   ? help   q quit"
 	default:
-		return "↑/↓ select   enter copy link   esc back   : command   ? help   q quit"
+		return "↑/↓ select   enter copy link   : command   ? help   q quit"
 	}
 }
 

@@ -5,29 +5,32 @@
 ## Preview
 
 ```text
-              ████   ███  ████  █████ █   █  ███      ████    ████
-              █   █ █   █ █   █   █   █   █ █   █     █   █  █
-              ████  █████ ████    █   █████ █████     ████   █  ██
-              █     █   █ █  █    █   █   █ █   █     █      █   █
-              █     █   █ █   █   █   █   █ █   █     █     █ ████ █
+    /$$$$$   /$$$$   /$$$$$$   /$$$$$$ /$$   /$$  /$$$$      /$$$$$       /$$$$$$
+   | $$__$$ /$$__$$ | $$__  $$|_  $$_/| $$  | $$ /$$__$$    | $$__$$     /$$__  $$
+   | $$$$$/| $$  $$ | $$$$$$$/  | $$  | $$$$$$$$| $$  $$    | $$$$$/    | $$  \__/
+   | $$__/ | $$$$$$ | $$__  $$  | $$  | $$__  $$| $$$$$$    | $$__/     | $$ /$$$$
+   | $$    | $$__$$ | $$  \ $$  | $$  | $$  | $$| $$__$$    | $$     /$$| $$|_  $$ /$$
+   |__/    |__/ |__/|__/  \__/  |__/  |__/  |__/|__/ |__/   |__/    |__/ \______/ |__/
 
-┌───────────────────┬──────────────────┬──────────────────┬──────────────────┐
-│      a about      │    p projects    │    r research    │    c contact     │
-└───────────────────┴──────────────────┴──────────────────┴──────────────────┘
+ ┌─────────────────────┬─────────────────────┬─────────────────────┬────────────────────┐
+ │       a about       │     p projects      │     r research      │     c contact      │
+ └─────────────────────┴─────────────────────┴─────────────────────┴────────────────────┘
 
-> ReAgent                 ReAgent
-  Trionda-Trifecta-26     An agentic retrosynthesis framework that plans
-  ResonanceID-cli         reaction routes with evidence-grounded scoring.
-  HTTP-SVR-200-OK         Python · Agentic · LLM · Scoring
-                          https://github.com/rugbedbugg/ReAgent
+ > ReAgent                     ReAgent
+   Trionda-Trifecta-26         An agentic retrosynthesis framework that plans reaction
+   ResonanceID-cli             routes with evidence-grounded, multi-objective scoring and
+   HTTP-SVR-200-OK             forward-validating filter-model checks.
+                               Python · Agentic · LLM · Scoring
+                               https://github.com/rugbedbugg/ReAgent
 
-──────────────────────────────────────────────────────────────────────────────
-    ↑/↓ select   enter copy link   esc back   : command   ? help   q quit
+ ────────────────────────────────────────────────────────────────────────────────────────
+
+                ↑/↓ select   enter copy link   : command   ? help   q quit
 ```
 
 The interface uses a centered Terminal Shop-style canvas and adapts for narrow terminals. A single accent colour marks the active header cell, fills the selection bar, and paints the name banner.
 
-The banner draws the profile name in a five-row block font. It takes its rows from the space left over beneath the body rather than enlarging the canvas, and falls back to a single plain line when the terminal is too narrow or too short for the block glyphs.
+The banner draws the profile name in the largest face that fits. A six-row money face with dollar stems is preferred; an eighty-column terminal steps down to a narrower five-row block face, and anything smaller falls back to a single plain line. The banner takes its rows from the space left over beneath the body rather than enlarging the canvas, so the viewport size never changes.
 
 URLs are emitted as OSC 8 hyperlinks, so terminals that support them make each link clickable. The URL text is always shown in full, so a terminal without OSC 8 support still displays something readable and copyable.
 
@@ -94,7 +97,7 @@ In navigation mode:
 | `j` / down arrow | Move to the next item |
 | `k` / up arrow | Move to the previous item |
 | `Enter` | Open the selected section, or copy the selected record's URL |
-| `Esc` | Return to the section index |
+| `Esc` | Return to the section index (still bound, no longer advertised in the footer) |
 | `?` | Show the complete command summary |
 | `:` | Focus the command prompt |
 | `q` | Exit the session |
