@@ -216,14 +216,3 @@ Point a DNS `A` record (and `AAAA` when IPv6 is configured) at the server. Permi
 ## Update portfolio content
 
 Edit the typed records in `internal/content/content.go`, update the matching tests in `internal/content/content_test.go`, then run `make check`. Rebuild and restart the deployed service to publish the new immutable content.
-
-## Commit convention
-
-Use a bracketed category followed by a concise imperative summary:
-
-```text
-[Feature]: Add a portfolio section
-[Fix]: Reject an invalid configuration
-[Docs]: Clarify the deployment guide
-[Test]: Cover command completion
-```
