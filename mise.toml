@@ -1,0 +1,24 @@
+[tools]
+go = "1.25.12"
+
+[env]
+GOTOOLCHAIN = "local"
+GOFLAGS = "-mod=readonly"
+
+[tasks.install]
+run = "go mod download && go mod verify"
+
+[tasks.format]
+run = "make format"
+
+[tasks.lint]
+run = "make vet"
+
+[tasks.test]
+run = "make test"
+
+[tasks.build]
+run = "make build"
+
+[tasks.check]
+run = "make check"

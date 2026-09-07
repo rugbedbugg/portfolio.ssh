@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'ci/**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Locate Go caches
+        id: cache
+        run: |
+          echo "build=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "modules=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.cache.outputs.build }}
+            ${{ steps.cache.outputs.modules }}
+          key: go-${{ runner.os }}-${{ hashFiles('mise.toml', 'go.sum') }}
+      - name: Verify toolchain and dependencies
+        run: |
+          test "$(go env GOVERSION)" = "go1.25.12"
+          mise run install
+      - name: Format, race tests, vet, build and CLI smoke
+        run: mise run check
+      - name: Record tested binary checksum
+        run: sha256sum bin/portfolio-ssh > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-ssh-linux-amd64
+          path: |
+            bin/portfolio-ssh
+            SHA256SUMS
+          if-no-files-found: error

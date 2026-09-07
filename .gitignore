@@ -23,3 +23,5 @@
 # Local metadata
 .*
 !.gitignore
+!.github/
+!.github/**
