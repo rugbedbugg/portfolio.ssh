@@ -1,5 +1,7 @@
 # portfolio.ssh
 
+[![CI](https://github.com/rugbedbugg/portfolio.ssh/actions/workflows/ci.yml/badge.svg)](https://github.com/rugbedbugg/portfolio.ssh/actions/workflows/ci.yml)
+
 `portfolio.ssh` is a read-only personal portfolio served through an interactive SSH terminal. Visitors connect with a standard SSH client and browse projects, research, and contact links in a sparse Terminal Shop-style interface. The service exposes portfolio navigation only; it is not a shell account.
 
 ## Preview
@@ -216,3 +218,31 @@ Point a DNS `A` record (and `AAAA` when IPv6 is configured) at the server. Permi
 ## Update portfolio content
 
 Edit the typed records in `internal/content/content.go`, update the matching tests in `internal/content/content_test.go`, then run `make check`. Rebuild and restart the deployed service to publish the new immutable content.
+
+## Testing
+
+The repository uses the Go version pinned in `mise.toml` and the same checks as
+CI:
+
+```powershell
+mise trust
+mise run install
+mise run check
+```
+
+`mise run check` formats the Go source, runs the race-enabled test suite and
+`go vet`, builds the binary, and executes the SSH smoke test. CI runs this
+workflow on pushes to `main` and pull requests, then records a checksum for the
+tested Linux binary.
+
+## License
+
+This repository does not currently include a license file. Until one is added,
+the source remains available for inspection but is not granted additional
+redistribution or modification rights.
+
+## Links
+
+- **Repository:** https://github.com/rugbedbugg/portfolio.ssh
+- **Issues:** https://github.com/rugbedbugg/portfolio.ssh/issues
+- **CI:** https://github.com/rugbedbugg/portfolio.ssh/actions/workflows/ci.yml
